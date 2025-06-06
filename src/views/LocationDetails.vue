@@ -346,8 +346,12 @@ const setAsMyStore = async () => {
 
               // Save location data to local storage
               localStorage.setItem('selectedLocation', JSON.stringify(locationData.value));
-              // Set the store ID for coupons
-              localStorage.setItem('storeId', locationData.value.coupon_id || null);
+              // Set the store ID for coupons only if coupon_availability is true
+              if (locationData.value.coupon_availability === true) {
+                localStorage.setItem('storeId', locationData.value.coupon_id || null);
+              } else {
+                localStorage.removeItem('storeId');
+              }
               isSelectedLocation.value = true;
               isPrimaryLocation.value = true;
 

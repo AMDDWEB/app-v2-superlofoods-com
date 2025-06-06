@@ -121,8 +121,12 @@ async function toggleLocation(location) {
       // Update both the selected location and localStorage with fresh data
       selectedLocation.value = freshLocation;
       localStorage.setItem('selectedLocation', JSON.stringify(freshLocation));
-      // Store the store ID for coupons
-      localStorage.setItem('storeId', freshLocation.coupon_id || null);
+      // Store the store ID for coupons only if coupon_availability is true
+      if (freshLocation.coupon_availability === true) {
+        localStorage.setItem('storeId', freshLocation.coupon_id || null);
+      } else {
+        localStorage.removeItem('storeId');
+      }
       
       // Emit events with fresh location data
       emit('location-selected', freshLocation);
@@ -133,7 +137,12 @@ async function toggleLocation(location) {
       // Fallback to original location if fresh data fetch fails
       selectedLocation.value = location;
       localStorage.setItem('selectedLocation', JSON.stringify(location));
-      localStorage.setItem('storeId', location.coupon_id || null);
+      // Only set storeId if coupon_availability is true
+      if (location.coupon_availability === true) {
+        localStorage.setItem('storeId', location.coupon_id || null);
+      } else {
+        localStorage.removeItem('storeId');
+      }
       emit('location-selected', location);
       window.dispatchEvent(new CustomEvent('locationChanged', {
         detail: location
@@ -143,7 +152,12 @@ async function toggleLocation(location) {
     // Fallback to original location if API call fails
     selectedLocation.value = location;
     localStorage.setItem('selectedLocation', JSON.stringify(location));
-    localStorage.setItem('storeId', location.coupon_id || null);
+    // Only set storeId if coupon_availability is true
+    if (location.coupon_availability === true) {
+      localStorage.setItem('storeId', location.coupon_id || null);
+    } else {
+      localStorage.removeItem('storeId');
+    }
     emit('location-selected', location);
     window.dispatchEvent(new CustomEvent('locationChanged', {
       detail: location

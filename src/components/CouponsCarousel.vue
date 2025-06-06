@@ -62,7 +62,16 @@ const { coupons, loading, fetchCoupons } = useCouponDetails();
 const { addClippedCoupon, showErrorAlert, errorMessage, closeErrorAlert } = useClippedCoupons();
 const hasMidaxCoupons = ref(import.meta.env.VITE_HAS_MIDAX_COUPONS === "true");
 const storeId = ref(localStorage.getItem('storeId'));
-const hasStoreId = computed(() => !!storeId.value);
+const selectedLocation = ref(JSON.parse(localStorage.getItem('selectedLocation') || '{}'));
+
+// Force update function to ensure state is in sync
+const forceUpdateState = () => {
+  storeId.value = localStorage.getItem('storeId');
+  selectedLocation.value = JSON.parse(localStorage.getItem('selectedLocation') || '{}');};
+
+const hasStoreId = computed(() => {
+  return !!storeId.value && selectedLocation.value?.coupon_availability === true;
+});
 
 // Only display up to the limit
 const displayCoupons = computed(() => coupons.value.slice(0, props.limit));
@@ -70,11 +79,15 @@ const displayCoupons = computed(() => coupons.value.slice(0, props.limit));
 // Watch for location changes
 watch(() => localStorage.getItem('selectedLocation'), async (newLocation) => {
   if (newLocation) {
-    // Update storeId when location changes
-    storeId.value = localStorage.getItem('storeId');
-    await fetchCoupons({ limit: props.limit, offset: 0 });
+    forceUpdateState();
+    if (selectedLocation.value?.coupon_availability === true) {
+      await fetchCoupons({ limit: props.limit, offset: 0 });
+    } else {
+      // Clear coupons if coupon_availability is false
+      coupons.value = [];
+    }
   }
-});
+}, { immediate: true }); // Add immediate: true to trigger on initial load
 
 // Add a watch for authentication events
 watch(() => TokenStorage.hasTokens(), async (isAuthenticated) => {
@@ -115,9 +128,14 @@ const goToCouponsArchive = () => {
 
 // Handler function for location change events
 const handleLocationChanged = async (event) => {
-  // Update storeId ref when location changes
-  storeId.value = localStorage.getItem('storeId');
-  await fetchCoupons({ limit: props.limit, offset: 0 });
+  forceUpdateState();
+  
+  if (selectedLocation.value?.coupon_availability === true) {
+    await fetchCoupons({ limit: props.limit, offset: 0 });
+  } else {
+    // Clear coupons if coupon_availability is false
+    coupons.value = [];
+  }
 };
 
 // Handler for storage events
@@ -130,16 +148,22 @@ const handleStorageChange = (event) => {
 onMounted(async () => {
   // Initialize storeId from localStorage
   storeId.value = localStorage.getItem('storeId');
+  const selectedLocation = JSON.parse(localStorage.getItem('selectedLocation') || '{}');
   
-  if (hasMidaxCoupons.value) {
-    // Only check for location if using Midax system
-    const selectedLocation = localStorage.getItem('selectedLocation');
-    if (selectedLocation) {
+  // Only fetch coupons if coupon_availability is true
+  if (selectedLocation?.coupon_availability === true) {
+    if (hasMidaxCoupons.value) {
+      // For Midax, we need a storeId
+      if (storeId.value) {
+        await fetchCoupons({ limit: props.limit, offset: 0 });
+      }
+    } else {
+      // For AppCard, fetch coupons directly
       await fetchCoupons({ limit: props.limit, offset: 0 });
     }
   } else {
-    // For AppCard, fetch coupons immediately
-    await fetchCoupons({ limit: props.limit, offset: 0 });
+    // Clear coupons if coupon_availability is false
+    coupons.value = [];
   }
   
   // Listen for location change events

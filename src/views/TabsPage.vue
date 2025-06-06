@@ -49,19 +49,32 @@ export default {
     const hasAppCardCoupons = ref(import.meta.env.VITE_HAS_APPCARD_COUPONS === "true");
     const hasMidaxCoupons = ref(import.meta.env.VITE_HAS_MIDAX_COUPONS === "true");
     const storeId = ref(localStorage.getItem('storeId'));
-    const hasStoreId = computed(() => !!storeId.value);
+    const selectedLocation = ref(JSON.parse(localStorage.getItem('selectedLocation') || '{}'));
+    
+    const hasStoreId = computed(() => {
+      return !!storeId.value && selectedLocation.value?.coupon_availability === true;
+    });
 
     // Dynamic coupon availability
     const hasCoupons = computed(() => coupons.value.length > 0);
+    
+    // Force update function to ensure state is in sync
+    const forceUpdateState = () => {
+      storeId.value = localStorage.getItem('storeId');
+      selectedLocation.value = JSON.parse(localStorage.getItem('selectedLocation') || '{}');
+    };
 
     // Watch for location changes
     watch(() => localStorage.getItem('selectedLocation'), async (newLocation) => {
       if (newLocation) {
-        // Update store ID from localStorage
-        storeId.value = localStorage.getItem('storeId');
-        await fetchCoupons({ limit: 10, offset: 0 });
+        forceUpdateState(); // Ensure all state is in sync
+        if (selectedLocation.value?.coupon_availability === true) {
+          await fetchCoupons({ limit: 10, offset: 0 });
+        } else {
+          coupons.value = [];
+        }
       }
-    });
+    }, { immediate: true }); // Add immediate: true to trigger on initial load
 
     // Watch for authentication changes
     watch(() => TokenStorage.hasTokens(), async (isAuthenticated) => {
@@ -72,22 +85,36 @@ export default {
 
     // Create a handler function that we can reference for both adding and removing event listener
     const handleLocationChanged = async (event) => {
-      // Ensure we update the storeId ref when location changes
-      storeId.value = localStorage.getItem('storeId');
-      await fetchCoupons({ limit: 10, offset: 0 });
+      forceUpdateState(); // Ensure all state is in sync
+      
+      if (selectedLocation.value?.coupon_availability === true) {
+        await fetchCoupons({ limit: 10, offset: 0 });
+      } else {
+        // Clear coupons if coupon_availability is false
+        coupons.value = [];
+      }
     };
 
     onMounted(async () => {
       // Initial coupon fetch
+      const selectedLocation = JSON.parse(localStorage.getItem('selectedLocation') || '{}');
+      
       if (hasMidaxCoupons.value) {
-        const selectedLocation = localStorage.getItem('selectedLocation');
-        if (selectedLocation) {
+        if (selectedLocation && selectedLocation.coupon_availability === true) {
           storeId.value = localStorage.getItem('storeId');
           await fetchCoupons({ limit: 10, offset: 0 });
+        } else {
+          // Clear coupons if no location or coupon_availability is false
+          coupons.value = [];
         }
-      } else {
-        // For AppCard, fetch immediately
-        await fetchCoupons({ limit: 10, offset: 0 });
+      } else if (import.meta.env.VITE_HAS_APPCARD_COUPONS === "true") {
+        // For AppCard, only fetch if we have a selected location with coupon_availability true
+        if (selectedLocation?.coupon_availability === true) {
+          await fetchCoupons({ limit: 10, offset: 0 });
+        } else {
+          // Clear coupons if no location or coupon_availability is false
+          coupons.value = [];
+        }
       }
 
       // Listen for location change events

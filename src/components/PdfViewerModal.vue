@@ -13,23 +13,24 @@
           <ion-button @click="closeModal">Close</ion-button>
         </ion-buttons>
       </ion-toolbar>
+      <ion-toolbar>
+        <div class="pdf-controls">
+          <ion-button shape="round" size="small" :disabled="currentPage === 1" @click="handlePreviousPage">
+            <ion-icon :icon="chevronBackOutline"></ion-icon>
+          </ion-button>
+
+          <div class="pdf-pagination">
+            Page {{ currentPage }} of {{ totalPages }}
+          </div>
+
+          <ion-button shape="round" size="small" :disabled="currentPage === totalPages" @click="handleNextPage">
+            <ion-icon :icon="chevronForwardOutline"></ion-icon>
+          </ion-button>
+        </div>
+      </ion-toolbar>
     </ion-header>
 
     <ion-content class="ion-no-padding pdf-wrapper" :scroll-y="false">
-      <!-- PDF Navigation Controls -->
-      <div class="pdf-controls">
-        <ion-button shape="round" size="small" :disabled="currentPage === 1" @click="handlePreviousPage">
-          <ion-icon :icon="chevronBackOutline" />
-        </ion-button>
-
-        <div class="pdf-pagination">
-          Page {{ currentPage }} of {{ totalPages }}
-        </div>
-
-        <ion-button shape="round" size="small" :disabled="currentPage === totalPages" @click="handleNextPage">
-          <ion-icon :icon="chevronForwardOutline" />
-        </ion-button>
-      </div>
 
       <!-- PDF Viewer -->
       <div ref="pdfContainer" class="pdf-container">
@@ -155,10 +156,6 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 16px;
-  margin-bottom: 12px; /* ✅ Add this line */
-  z-index: 10;
-  flex-shrink: 0;
 }
 
 .pdf-pagination {
@@ -171,9 +168,22 @@ onMounted(() => {
 .pdf-container {
   width: 100%;
   height: 100%;
-  overflow: hidden;
-  touch-action: none;
-  justify-content: center;
+  overflow: auto;
+  touch-action: auto;
+  position: relative;
+  cursor: grab;
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+.pdf-container:active {
+  cursor: grabbing;
+}
+
+.pdf-container img,
+.pdf-container canvas {
+  transform-origin: center;
+  transition: transform 0.5s ease-out;
 }
 
 .panzoom-content {

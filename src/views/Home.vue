@@ -92,6 +92,7 @@ import PdfViewerModal from '@/components/PdfViewerModal.vue';
 import CouponsCarousel from '@/components/CouponsCarousel.vue';
 import { IonPage, IonHeader, IonToolbar, IonContent, IonButtons, IonButton, IonIcon, IonTitle, IonImg, IonGrid, IonRow, IonCol } from '@ionic/vue';
 import { useRouter } from 'vue-router';
+import { useLocationDetails } from '@/composables/useLocationDetails';
 import { useSignupModal } from '@/composables/useSignupModal';
 import BarcodeModal from '@/components/BarcodeModal.vue';
 import apiNotifications from '../axios/apiNotifications.js'; // Import your API for notifactions
@@ -112,7 +113,16 @@ const presentBarcodeModal = () => {
 const sliders = ref([]);
 const recipes = ref([]);
 const spotlights = ref([]);
+const { transformLocationData } = useLocationDetails();
+
 const selectedLocation = ref(null);
+
+// Helper to set and persist selected location with transformed fields
+function updateSelectedLocation(rawLocation) {
+  const transformed = transformLocationData(rawLocation);
+  selectedLocation.value = transformed;
+  localStorage.setItem('selectedLocation', JSON.stringify(transformed));
+}
 const logoUrl = ref(import.meta.env.VITE_PRIMARY_LOGO);
 const hasAppCardCoupons = ref(import.meta.env.VITE_HAS_APPCARD_COUPONS === "true");
 const hasMidaxCoupons = ref(import.meta.env.VITE_HAS_MIDAX_COUPONS === "true");
@@ -140,16 +150,22 @@ watch(selectedLocation, () => {
 }, { deep: true });
 
 // Update the computed properties
+// Determine if the selected location has a weekly ad available
 const hasWeeklyAd = computed(() => {
+  if (selectedLocation.value?.weekly_ad_url) return true;
+  // Fallback to legacy ads array structure
   const weeklyAd = selectedLocation.value?.ads?.find(ad =>
-    ad.ad_type.some(type => type.type_name === "Weekly Ad")
+    ad.ad_type?.some(type => type.type_name === 'Weekly Ad')
   );
   return Boolean(weeklyAd);
 });
 
+// Determine if the selected location has rewards available
 const hasRewards = computed(() => {
+  if (selectedLocation.value?.rewards_url) return true;
+  // Fallback to legacy ads array
   const rewardsAd = selectedLocation.value?.ads?.find(ad =>
-    ad.ad_type.some(type => type.type_name === "Reward")
+    ad.ad_type?.some(type => type.type_name === 'Reward')
   );
   return Boolean(rewardsAd);
 });
@@ -163,7 +179,7 @@ async function checkSelectedLocation() {
       // Always fetch fresh data from the API
       const freshLocationData = await apiLocations.getLocationById(parsedLocation.id);
       if (freshLocationData) {
-        selectedLocation.value = freshLocationData;
+        updateSelectedLocation(freshLocationData);
         localStorage.setItem('selectedLocation', JSON.stringify(freshLocationData));
       }
     } catch (error) {
@@ -208,7 +224,7 @@ async function handleForceRefresh() {
 // Enhance location change handler
 async function handleLocationChange(event) {
   if (event.detail?.id) {
-    selectedLocation.value = event.detail;
+    updateSelectedLocation(event.detail);
     await fetchLocationData();
     await getData();
   }
@@ -220,7 +236,7 @@ async function fetchLocationData() {
     try {
       const freshLocationData = await apiLocations.getLocationById(selectedLocation.value.id);
       if (freshLocationData) {
-        selectedLocation.value = freshLocationData;
+        updateSelectedLocation(freshLocationData);
         localStorage.setItem('selectedLocation', JSON.stringify(freshLocationData));
       }
     } catch (error) {
@@ -236,7 +252,7 @@ function openLocationModal() {
 
 // Handle location selection
 async function handleLocationSelected(location) {
-  selectedLocation.value = location;
+  updateSelectedLocation(location);
   localStorage.setItem('selectedLocation', JSON.stringify(location));
   await fetchLocationData();
   await getData();
@@ -276,24 +292,18 @@ const openPdfModal = (type) => {
 
   switch (type) {
     case 'weekly': {
-      const weeklyAd = selectedLocation.value.ads?.find(ad =>
-        ad.ad_type.some(type => type.type_name === "Weekly Ad")
-      );
-      if (weeklyAd) {
-        modalData.url = weeklyAd.file_url;
-        modalData.type = "Weekly Ad";
-        modalData.startDate = weeklyAd.ad_start_date;
+      if (selectedLocation.value.weekly_ad_url) {
+        modalData.url = selectedLocation.value.weekly_ad_url;
+        modalData.type = selectedLocation.value.weekly_ad_type || 'Weekly Ad';
+        modalData.startDate = selectedLocation.value.weekly_ad_start_date || '';
       }
       break;
     }
     case 'rewards': {
-      const rewardsAd = selectedLocation.value.ads?.find(ad =>
-        ad.ad_type.some(type => type.type_name === "Reward")
-      );
-      if (rewardsAd) {
-        modalData.url = rewardsAd.file_url;
-        modalData.type = "Reward";
-        modalData.startDate = rewardsAd.ad_start_date;
+      if (selectedLocation.value.rewards_url) {
+        modalData.url = selectedLocation.value.rewards_url;
+        modalData.type = selectedLocation.value.rewards_type || 'Reward';
+        modalData.startDate = selectedLocation.value.rewards_start_date || '';
       }
       break;
     }
@@ -361,7 +371,7 @@ onIonViewWillEnter(async () => {
   if (storedLocation) {
     const parsedLocation = JSON.parse(storedLocation);
     if (parsedLocation?.id !== selectedLocation.value?.id) {
-      selectedLocation.value = parsedLocation;
+      updateSelectedLocation(parsedLocation);
       await fetchLocationData();
       await getData();
     }

@@ -37,6 +37,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { Swiper, SwiperSlide } from 'swiper/vue';
+import { IonList, IonItem, IonText, IonSkeletonText } from '@ionic/vue';
 import 'swiper/css';
 import apiSpotlights from '../axios/apiSpotlights';
 import { useSpotlightDetails } from '../composables/useSpotlightDetails';

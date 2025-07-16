@@ -90,27 +90,63 @@ const fetchUserProfile = async () => {
   try {
     console.log('Starting fetchUserProfile, hasMidaxCoupons:', hasMidaxCoupons.value);
     if (hasMidaxCoupons.value) {
-      const storeId = localStorage.getItem('storeId');
-      console.log('StoreId from localStorage:', storeId);
-      
-      if (!storeId) {
-        throw new Error('Missing store ID');
+      // First, try to load from localStorage for immediate display
+      const cachedUserData = localStorage.getItem('userData');
+      if (cachedUserData) {
+        try {
+          const userData = JSON.parse(cachedUserData);
+          console.log('Loading from localStorage:', userData);
+          
+          // Handle both array and object formats
+          const userDataObj = Array.isArray(userData) ? userData[0] : userData;
+          
+          if (userDataObj) {
+            midaxProfileData.value = userDataObj;
+            userProfile.value = {
+              firstName: userDataObj.FirstName || '',
+              lastName: userDataObj.LastName || '',
+              zipCode: userDataObj.Zip || ''
+            };
+            console.log('Profile loaded from localStorage:', userProfile.value);
+          }
+        } catch (error) {
+          console.error('Error parsing cached user data:', error);
+        }
       }
 
-      const response = await CustomerApi.checkForExistingUser(storeId);
-      console.log('API Response:', response);
+      // Try to fetch fresh data in background (optional fallback)
+      const storeId = localStorage.getItem('storeId');
+      if (storeId) {
+        try {
+          console.log('Fetching fresh data from API, StoreId:', storeId);
+          const response = await CustomerApi.checkForExistingUser(storeId);
+          console.log('Fresh API Response:', response);
 
-      if (response.data && response.data[0]) {
-        console.log('User data received:', response.data[0]);
-        midaxProfileData.value = response.data[0];
-        userProfile.value = {
-          firstName: response.data[0].FirstName || '',
-          lastName: response.data[0].LastName || '',
-          zipCode: response.data[0].Zip || ''
-        };
-        console.log('Updated userProfile:', userProfile.value);
-      } else {
-        console.log('No user data in response');
+          if (response.data && response.data[0]) {
+            console.log('Fresh user data received:', response.data[0]);
+            
+            // Update localStorage with fresh data
+            localStorage.setItem('userData', JSON.stringify(response.data));
+            
+            // Update the profile with fresh data
+            midaxProfileData.value = response.data[0];
+            userProfile.value = {
+              firstName: response.data[0].FirstName || '',
+              lastName: response.data[0].LastName || '',
+              zipCode: response.data[0].Zip || ''
+            };
+            console.log('Profile updated with fresh data:', userProfile.value);
+          }
+        } catch (apiError) {
+          console.warn('API call failed, using cached data:', apiError);
+          // If we have cached data, we can continue silently
+          // If no cached data was available, this will be handled below
+        }
+      }
+      
+      // If we still don't have any profile data, show error
+      if (!userProfile.value.firstName && !userProfile.value.lastName) {
+        throw new Error('No user data available');
       }
     } else {
       console.log('Using CouponsApi to fetch data');

@@ -50,37 +50,17 @@ export function useCouponDetails() {
 
   const fetchCategories = async () => {
     try {
-      // Load initial batch of coupons
-      const initialCoupons = await CouponsApi.getCoupons({
-        limit: isMidax.value ? 20 : 1000,
-        offset: 0
-      });
-
-      // Store initial coupons
-      allCoupons.value = (initialCoupons.items || []).map(coupon => ({
-        ...coupon,
-        category: coupon.category || 'Uncategorized'
-      }));
-
-      // Extract categories from initial batch
-      const categoryCounts = allCoupons.value.reduce((acc, coupon) => {
-        const category = coupon.category || 'Uncategorized';
-        acc[category] = (acc[category] || 0) + 1;
-        return acc;
-      }, {});
-
-      // Only include categories that have coupons
-      const uniqueCategories = Object.entries(categoryCounts)
-        .filter(([, count]) => count > 0)
-        .map(([category]) => category)
-        .sort();
-
-      categories.value = ['All Coupons', ...uniqueCategories];
-
-      // Initialize coupons with initial batch
-      coupons.value = allCoupons.value;
+      // Fetch categories from the API endpoint
+      const categoriesResponse = await CouponsApi.getCategories();
+      
+      // Extract category names from the API response
+      const categoryNames = categoriesResponse.map(category => category.Name);
+      
+      // Set categories with 'All Coupons' first, then the API categories
+      categories.value = ['All Coupons', ...categoryNames];
+      
     } catch (error) {
-      console.error('Error in fetchCategories:', error);
+      console.error('Error fetching categories:', error);
       categories.value = ['All Coupons'];
     }
   };

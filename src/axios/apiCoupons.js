@@ -18,13 +18,20 @@ class CouponsApi {
   }
 
   async getCategories() {
+    const storeId = localStorage.getItem('storeId');
+    
+    if (!storeId) {
+      throw new Error('No store ID found in localStorage');
+    }
+
     const response = await couponsInstance({
       url: '/categories',
       method: 'GET',
       params: {
-        merchant_id: import.meta.env.VITE_COUPONS_MERCHANT_ID
+        location_id: storeId
       }
     });
+    
     return response.data;
   }
 
@@ -281,6 +288,14 @@ class CouponsApi {
 
   isAuthenticated() {
     return TokenStorage.hasTokens();
+  }
+
+  async getClippedCoupons(params) {
+    return await couponsInstance({
+      url: '/card-offers',
+      method: 'GET',
+      params
+    });
   }
   
   // Show error dialog when a coupon is no longer available

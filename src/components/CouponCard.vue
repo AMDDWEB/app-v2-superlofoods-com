@@ -66,9 +66,9 @@
 </template>
 
 <script setup>
-import { ref, computed, defineProps, defineEmits } from 'vue';
+import { ref, computed, defineProps, defineEmits, onMounted } from 'vue';
 import { format } from 'date-fns';
-import { IonCard, IonImg, IonIcon, IonButton, IonText, IonSpinner, IonModal, IonHeader, IonToolbar, IonTitle, IonButtons, IonContent, IonSegment, IonSegmentButton, IonLabel } from '@ionic/vue';
+import { IonCard, IonCardTitle, IonImg, IonIcon, IonButton, IonText, IonSpinner, IonModal, IonHeader, IonToolbar, IonTitle, IonButtons, IonContent, IonSegment, IonSegmentButton, IonLabel } from '@ionic/vue';
 import { cut } from 'ionicons/icons';
 import { useRouter } from 'vue-router';
 import { useSignupModal } from '@/composables/useSignupModal';
@@ -88,14 +88,19 @@ const props = defineProps({
 const hasAppCardCoupons = ref(import.meta.env.VITE_HAS_APPCARD_COUPONS === "true");
 const hasMidaxCoupons = ref(import.meta.env.VITE_HAS_MIDAX_COUPONS === "true");
 
-//const presentingElement = ref(document.querySelector('ion-router-outlet'));
-const emit = defineEmits(['clipped']);
+const presentingElement = ref(null);
+const emit = defineEmits(['click', 'clip', 'clipped']);
 const { openSignupModal, SignupModal } = useSignupModal();
-const { signIn } = useAuthModule();
+const { signIn, signOut } = useAuthModule();
 const { addClippedCoupon, isCouponClipped, showErrorAlert, closeErrorAlert } = useClippedCoupons();
 const isClipping = ref(false);
 const showCouponModal = ref(false);
 const selectedSegment = ref('details');
+
+// Initialize presentingElement after component mounts
+onMounted(() => {
+  presentingElement.value = document.querySelector('ion-router-outlet');
+});
 
 const formatExpDate = (date) => format(new Date(date), 'MM/dd/yyyy');
 
@@ -145,14 +150,17 @@ const handleClipClick = async (event) => {
   isClipping.value = true;
   try {
     if (hasMidaxCoupons.value) {
-      // For Midax, check card number directly
-      let cardNumber = localStorage.getItem('CardNumber');
-      const storeId = localStorage.getItem('storeId');
-      const accessToken = localStorage.getItem('accessToken') || localStorage.getItem('access_token');
-      
-      if ((!cardNumber || !storeId) && !accessToken) {
-        // Only redirect to sign in if we don't have card number and no access token
+      // Check for both CardNumber and cardNumber
+      let cardNumber = localStorage.getItem('CardNumber') || localStorage.getItem('cardNumber');
+      if (!cardNumber) {
+        // Remove only relevant items, not storeId
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('CardNumber');
+        localStorage.removeItem('cardNumber');
+        // await signOut();
         await signIn();
+        isClipping.value = false;
         return;
       }
 

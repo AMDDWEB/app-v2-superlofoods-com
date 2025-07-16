@@ -29,6 +29,7 @@
     "@chenfengyuan/vue-barcode": "^2.0.2",
     "@ionic/vue": "^8.0.0",
     "@ionic/vue-router": "^8.0.0",
+    "@panzoom/panzoom": "^4.6.0",
     "auth0": "^4.18.0",
     "axios": "^1.7.7",
     "capacitor-native-settings": "7.0.1",

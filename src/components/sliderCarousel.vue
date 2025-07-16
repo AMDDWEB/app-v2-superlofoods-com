@@ -18,6 +18,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 import { Swiper, SwiperSlide } from 'swiper/vue';
+import { IonSkeletonText } from '@ionic/vue';
 import { Autoplay, Pagination } from 'swiper/modules';
 import 'swiper/css';
 import apiSliders from '../axios/apiSliders';

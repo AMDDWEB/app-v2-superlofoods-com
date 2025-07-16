@@ -41,6 +41,7 @@
 <script setup>
 import { computed, watch, onMounted, onUnmounted, ref } from 'vue';
 import { Swiper, SwiperSlide } from 'swiper/vue';
+import { IonList, IonItem, IonText, IonIcon } from '@ionic/vue';
 import { useRouter } from 'vue-router';
 import { useCouponDetails } from '@/composables/useCouponDetails';
 import { useClippedCoupons } from '@/composables/useClippedCoupons';
@@ -59,42 +60,60 @@ const props = defineProps({
 
 const router = useRouter();
 const { coupons, loading, fetchCoupons } = useCouponDetails();
-const { addClippedCoupon, showErrorAlert, errorMessage, closeErrorAlert } = useClippedCoupons();
+const { 
+  addClippedCoupon, 
+  showErrorAlert, 
+  errorMessage, 
+  closeErrorAlert, 
+  loadClippedCoupons 
+} = useClippedCoupons();
 const hasMidaxCoupons = ref(import.meta.env.VITE_HAS_MIDAX_COUPONS === "true");
 const storeId = ref(localStorage.getItem('storeId'));
-const selectedLocation = ref(JSON.parse(localStorage.getItem('selectedLocation') || '{}'));
-
-// Force update function to ensure state is in sync
-const forceUpdateState = () => {
-  storeId.value = localStorage.getItem('storeId');
-  selectedLocation.value = JSON.parse(localStorage.getItem('selectedLocation') || '{}');};
-
-const hasStoreId = computed(() => {
-  return !!storeId.value && selectedLocation.value?.coupon_availability === true;
-});
+const hasStoreId = computed(() => !!storeId.value);
 
 // Only display up to the limit
 const displayCoupons = computed(() => coupons.value.slice(0, props.limit));
 
+// Define onSwiper method for Swiper component
+const onSwiper = (swiper) => {
+  // Store swiper instance if needed for later manipulation
+};
+
+// Function to check if we should load coupons and clipped coupons
+const loadAllCoupons = async () => {
+  const currentStoreId = localStorage.getItem('storeId');
+  const currentCardNumber = localStorage.getItem('CardNumber');
+  
+  if (currentStoreId) {
+    // Always refresh coupons when store changes
+    await fetchCoupons({ limit: props.limit, offset: 0 });
+    
+    // If user is logged in (has card number), load their clipped coupons
+    if (currentCardNumber) {
+      await loadClippedCoupons();
+    }
+  }
+};
+
 // Watch for location changes
 watch(() => localStorage.getItem('selectedLocation'), async (newLocation) => {
   if (newLocation) {
-    forceUpdateState();
-    if (selectedLocation.value?.coupon_availability === true) {
-      await fetchCoupons({ limit: props.limit, offset: 0 });
-    } else {
-      // Clear coupons if coupon_availability is false
-      coupons.value = [];
-    }
+    storeId.value = localStorage.getItem('storeId');
+    await loadAllCoupons();
   }
-}, { immediate: true }); // Add immediate: true to trigger on initial load
+});
 
-// Add a watch for authentication events
+// Watch for authentication changes
 watch(() => TokenStorage.hasTokens(), async (isAuthenticated) => {
   if (isAuthenticated) {
-    // Refresh coupons when user becomes authenticated
-    await fetchCoupons({ limit: props.limit, offset: 0 });
+    // When user logs in, reload everything
+    await loadAllCoupons();
   }
+});
+
+// Watch for user sign up events (in case of new registration)
+window.addEventListener('userSignedUp', async () => {
+  await loadAllCoupons();
 });
 
 // Handle coupon clipping result
@@ -128,14 +147,9 @@ const goToCouponsArchive = () => {
 
 // Handler function for location change events
 const handleLocationChanged = async (event) => {
-  forceUpdateState();
-  
-  if (selectedLocation.value?.coupon_availability === true) {
-    await fetchCoupons({ limit: props.limit, offset: 0 });
-  } else {
-    // Clear coupons if coupon_availability is false
-    coupons.value = [];
-  }
+  // Update storeId ref when location changes
+  storeId.value = localStorage.getItem('storeId');
+  await fetchCoupons({ limit: props.limit, offset: 0 });
 };
 
 // Handler for storage events
@@ -148,22 +162,16 @@ const handleStorageChange = (event) => {
 onMounted(async () => {
   // Initialize storeId from localStorage
   storeId.value = localStorage.getItem('storeId');
-  const selectedLocation = JSON.parse(localStorage.getItem('selectedLocation') || '{}');
   
-  // Only fetch coupons if coupon_availability is true
-  if (selectedLocation?.coupon_availability === true) {
-    if (hasMidaxCoupons.value) {
-      // For Midax, we need a storeId
-      if (storeId.value) {
-        await fetchCoupons({ limit: props.limit, offset: 0 });
-      }
-    } else {
-      // For AppCard, fetch coupons directly
-      await fetchCoupons({ limit: props.limit, offset: 0 });
-    }
+
+  if (hasMidaxCoupons.value) {
+    // Only check for location if using Midax system
+    if (storeId.value) {
+    await loadAllCoupons();
+  }
   } else {
-    // Clear coupons if coupon_availability is false
-    coupons.value = [];
+    // For AppCard, fetch coupons immediately
+    await loadAllCoupons();
   }
   
   // Listen for location change events

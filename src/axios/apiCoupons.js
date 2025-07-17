@@ -55,7 +55,7 @@ class CouponsApi {
       // Only add card number if authenticated - check both formats
       const cardNumber = localStorage.getItem('CardNumber') || localStorage.getItem('cardNumber');
       if (cardNumber) {
-        params.Card_number = cardNumber;
+        params.card_number = cardNumber;
       }
     } else {
       // For AppCard system - load all at once

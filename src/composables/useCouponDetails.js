@@ -12,7 +12,8 @@ export function useCouponDetails() {
   const fetchCoupons = async ({
     limit = isMidax.value ? 20 : 1000,
     offset = 0,
-    category = null
+    category = null,
+    category_id = null
   } = {}) => {
     try {
       if (offset === 0) {
@@ -23,6 +24,7 @@ export function useCouponDetails() {
         limit,
         offset,
         category,
+        category_id,
         sortBy: selectedSort.value
       });
 
@@ -53,11 +55,16 @@ export function useCouponDetails() {
       // Fetch categories from the API endpoint
       const categoriesResponse = await CouponsApi.getCategories();
       
+      // Store the full category objects for later reference
+      const categoryData = categoriesResponse;
+      
       // Extract category names from the API response
       const categoryNames = categoriesResponse.map(category => category.Name);
       
       // Set categories with 'All Coupons' first, then the API categories
       categories.value = ['All Coupons', ...categoryNames];
+      
+      return categoryData;
       
     } catch (error) {
       console.error('Error fetching categories:', error);
@@ -67,11 +74,40 @@ export function useCouponDetails() {
 
   const availableCategories = computed(() => categories.value);
 
+  const fetchWeeklySpecialsCoupons = async (limit = isMidax.value ? 20 : 1000, offset = 0) => {
+    try {
+      // First fetch categories to get the Weekly Specials ID
+      const categoryData = await fetchCategories();
+      
+      // Find the Weekly Specials category
+      const weeklySpecialsCategory = categoryData.find(cat => cat.Name === 'Weekly Specials');
+      
+      if (weeklySpecialsCategory) {
+        // Use the ID to fetch filtered coupons
+        return await fetchCoupons({
+          limit,
+          offset,
+          category_id: weeklySpecialsCategory.Id
+        });
+      } else {
+        console.warn('Weekly Specials category not found');
+        return { items: [] };
+      }
+    } catch (error) {
+      console.error('Error fetching Weekly Specials coupons:', error);
+      return { items: [] };
+    }
+  };
+
   return {
     coupons,
     loading,
     fetchCoupons,
     fetchCategories,
+    fetchWeeklySpecialsCoupons,
+    categories,
+    selectedSort,
+    allCoupons,
     availableCategories,
     isMidax
   };

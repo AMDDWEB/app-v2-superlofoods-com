@@ -49,10 +49,15 @@
             </ion-button>
           </ion-col>
           <ion-col>
-            <ion-button expand="block" size="small" @click="handleMyStoreClick"
-              :color="selectedLocation ? 'primary' : 'medium'">
-              <ion-icon slot="start" name="set-location-regular"></ion-icon>
-              {{ selectedLocation ? 'My Store' : 'Set My Store' }}
+            <ion-button expand="block" size="small" @click="openShop" color="primary">
+              <ion-icon slot="start" name="cart-shopping-regular" src="/src/icons/regular/cart-shopping-regular.svg"></ion-icon>
+              Shop Now
+            </ion-button>
+          </ion-col>
+          <ion-col>
+            <ion-button expand="block" size="small" @click="$router.push('/tabs/recipes')" color="primary">
+              <ion-icon slot="start" name="recipes-regular"></ion-icon>
+              Recipes
             </ion-button>
           </ion-col>
         </ion-row>
@@ -60,11 +65,26 @@
 
       <!-- Spotlights Carousel -->
       <SpotlightsCarousel :spotlights="spotlights" />
-      <!-- Featured Coupons Carousel -->
-      <CouponsCarousel v-if="hasAppCardCoupons || hasMidaxCoupons" :coupons="coupons" />
+      
+      <!-- Weekly Specials Coupons Carousel -->
+      <CouponsCarousel 
+        v-if="hasAppCardCoupons || hasMidaxCoupons" 
+        category="Weekly Specials"
+        title="Weekly Specials"
+        subtitle="Don't miss this week's exclusive deals!"
+        :limit="10"
+      />
+      
+      <!-- General Coupons Carousel -->
+      <CouponsCarousel 
+        v-if="hasAppCardCoupons || hasMidaxCoupons" 
+        title="Clip & Save Coupons"
+        subtitle="Unlock exclusive savings – limited time only!"
+        :limit="10"
+      />
 
       <!-- Featured Recipes Carousel -->
-      <RecipeCarousel :recipes="recipes" />
+
 
       <!-- Location Modal -->
       <SetLocationModal :is-open="isLocationModalOpen" @update:is-open="isLocationModalOpen = $event"
@@ -82,10 +102,10 @@
 import { ref, onMounted, watch, onUnmounted, computed, inject } from 'vue';
 import apiSliders from '../axios/apiSliders.js';
 import sliderCarousel from '@/components/sliderCarousel.vue';
-import apiRecipes from '../axios/apiRecipes.js';
+
 import apiSpotlights from '../axios/apiSpotlights.js';
 import apiLocations from '../axios/apiLocations.js'; // Import the API for locations
-import RecipeCarousel from '@/components/RecipeCarousel.vue';
+
 import SpotlightsCarousel from '@/components/SpotlightsCarousel.vue';
 import SetLocationModal from '@/components/SetLocationModal.vue';
 import PdfViewerModal from '@/components/PdfViewerModal.vue';
@@ -98,6 +118,7 @@ import BarcodeModal from '@/components/BarcodeModal.vue';
 import apiNotifications from '../axios/apiNotifications.js'; // Import your API for notifactions
 import { onIonViewDidEnter, onIonViewWillEnter } from '@ionic/vue';
 import { defineComponent } from 'vue';
+import { Browser } from '@capacitor/browser';
 
 const showBarcodeModal = ref(false);
 const { getLoyaltyNumber, getCardNumber } = useSignupModal();
@@ -111,7 +132,7 @@ const presentBarcodeModal = () => {
 
 // Initialize all refs at the top
 const sliders = ref([]);
-const recipes = ref([]);
+
 const spotlights = ref([]);
 const { transformLocationData } = useLocationDetails();
 
@@ -265,14 +286,12 @@ async function getData() {
   spotlights.value = [];
 
   try {
-    const [slidersResponse, recipesResponse, spotlightsResponse] = await Promise.all([
+    const [slidersResponse, spotlightsResponse] = await Promise.all([
       apiSliders.getSliders(),
-      apiRecipes.getRecipes(),
       apiSpotlights.getSpotlights()
     ]);
 
     sliders.value = slidersResponse;
-    recipes.value = Array.isArray(recipesResponse) ? recipesResponse : [];
     spotlights.value = Array.isArray(spotlightsResponse) ? spotlightsResponse : [];
   } catch (err) {
     // Handle error silently
@@ -377,6 +396,15 @@ onIonViewWillEnter(async () => {
     }
   }
 });
+
+// Add the openShop function
+const openShop = async () => {
+  await Browser.open({
+    url: 'https://shop.brinksmarket.com',
+    presentationStyle: 'popover',
+    windowName: '_blank'
+  });
+};
 
 defineComponent({
   name: 'HomePage',

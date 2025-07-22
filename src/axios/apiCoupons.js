@@ -39,6 +39,7 @@ class CouponsApi {
     limit = 1000,
     offset = 0,
     category = null,
+    category_id = null,
     sortBy = 'expires'
   } = {}) {
     const hasMidaxCoupons = import.meta.env.VITE_HAS_MIDAX_COUPONS === "true";
@@ -51,6 +52,11 @@ class CouponsApi {
       params.location_id = localStorage.getItem('storeId');
       params.limit = '25'; // Fixed limit for Midax
       params.offset = offset.toString();
+      
+      // Add category_id parameter for category filtering in Midax
+      if (category_id) {
+        params.category_id = category_id.toString();
+      }
       
       // Only add card number if authenticated - check both formats
       const cardNumber = localStorage.getItem('CardNumber') || localStorage.getItem('cardNumber');

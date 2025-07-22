@@ -4,10 +4,10 @@
       <ion-item @click="goToCouponsArchive">
         <ion-text>
           <h3 class="app-list-heading">
-            Clip & Save Coupons
+            {{ title }}
             <ion-icon style="font-size: 16px;" name="chevron-right" color="medium"></ion-icon>
           </h3>
-          <p class="app-list-subheading">Unlock exclusive savings – limited time only!</p>
+          <p class="app-list-subheading">{{ subtitle }}</p>
         </ion-text>
       </ion-item>
     </ion-list>
@@ -55,11 +55,25 @@ const props = defineProps({
   limit: {
     type: Number,
     default: 10
+  },
+  category: {
+    type: String,
+    default: null
+  },
+  title: {
+    type: String,
+    default: 'Clip & Save Coupons'
+  },
+  subtitle: {
+    type: String,
+    default: 'Unlock exclusive savings – limited time only!'
   }
 });
 
 const router = useRouter();
-const { coupons, loading, fetchCoupons } = useCouponDetails();
+const { loading, fetchCoupons, fetchWeeklySpecialsCoupons } = useCouponDetails();
+// Create local coupons state to prevent state sharing between carousels
+const localCoupons = ref([]);
 const { 
   addClippedCoupon, 
   showErrorAlert, 
@@ -72,7 +86,7 @@ const storeId = ref(localStorage.getItem('storeId'));
 const hasStoreId = computed(() => !!storeId.value);
 
 // Only display up to the limit
-const displayCoupons = computed(() => coupons.value.slice(0, props.limit));
+const displayCoupons = computed(() => localCoupons.value.slice(0, props.limit));
 
 // Define onSwiper method for Swiper component
 const onSwiper = (swiper) => {
@@ -85,8 +99,21 @@ const loadAllCoupons = async () => {
   const currentCardNumber = localStorage.getItem('CardNumber');
   
   if (currentStoreId) {
-    // Always refresh coupons when store changes
-    await fetchCoupons({ limit: props.limit, offset: 0 });
+    try {
+      // Check if we need to fetch Weekly Specials or regular coupons
+      if (props.category === 'Weekly Specials') {
+        // Use Weekly Specials filter
+        const response = await fetchWeeklySpecialsCoupons(props.limit, 0);
+        localCoupons.value = response.items || [];
+      } else {
+        // Regular coupons (no category filter)
+        const response = await fetchCoupons({ limit: props.limit, offset: 0 });
+        localCoupons.value = response.items || [];
+      }
+    } catch (error) {
+      console.error('Error loading coupons:', error);
+      localCoupons.value = [];
+    }
     
     // If user is logged in (has card number), load their clipped coupons
     if (currentCardNumber) {
@@ -127,7 +154,7 @@ const handleClipCoupon = async (couponId) => {
     addClippedCoupon(couponId);
 
     // Find and update the coupon directly without creating a new array
-    const coupon = coupons.value.find(coupon => coupon.id === couponId);
+    const coupon = localCoupons.value.find(coupon => coupon.id === couponId);
     if (coupon) {
       // Use direct property assignment to maintain reactivity
       coupon.clipped = true;
@@ -149,7 +176,20 @@ const goToCouponsArchive = () => {
 const handleLocationChanged = async (event) => {
   // Update storeId ref when location changes
   storeId.value = localStorage.getItem('storeId');
-  await fetchCoupons({ limit: props.limit, offset: 0 });
+  
+  try {
+    // Use appropriate fetch method based on category
+    if (props.category === 'Weekly Specials') {
+      const response = await fetchWeeklySpecialsCoupons(props.limit, 0);
+      localCoupons.value = response.items || [];
+    } else {
+      const response = await fetchCoupons({ limit: props.limit, offset: 0 });
+      localCoupons.value = response.items || [];
+    }
+  } catch (error) {
+    console.error('Error updating coupons after location change:', error);
+    localCoupons.value = [];
+  }
 };
 
 // Handler for storage events

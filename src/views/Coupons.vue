@@ -116,7 +116,7 @@ import { IonPage, IonHeader, IonToolbar, IonContent, IonSegment, IonSegmentButto
 import { defineComponent } from 'vue';
 
 const router = useRouter();
-const { coupons, loading, fetchCoupons, availableCategories, fetchCategories, isMidax } = useCouponDetails();
+const { coupons, loading, fetchCoupons, availableCategories, fetchCategories, fetchCouponsByCategory, categoryMap, isMidax } = useCouponDetails();
 const { SignupModal } = useSignupModal();
 const { isCouponClipped, syncClippedCoupons, showErrorAlert, errorMessage, closeErrorAlert } = useClippedCoupons();
 
@@ -155,6 +155,15 @@ watch(coupons, (newCoupons) => {
 watch(selectedView, async (newView) => {
   if (newView === 'clipped') {
     await cleanupExpiredCoupons();
+  }
+});
+
+// Watch for changes to selectedCategory to fetch coupons by category
+watch(selectedCategory, async (newCategory) => {
+  if (newCategory) {
+    loading.value = true;
+    const response = await fetchCouponsByCategory(newCategory);
+    loading.value = false;
   }
 });
 
@@ -279,22 +288,39 @@ const loadAllCoupons = async () => {
 
 const setCategory = async (category) => {
   selectedCategory.value = category;
-  await loadAllCoupons(); // Reload all coupons with the new category
-};
-
-const goToCouponDetails = (couponId) => {
-  router.push(`/coupons/${couponId}`);
+  // The watch will handle the fetching
 };
 
 const handleSearch = () => {
-  // Debouncing is handled by the watch function
+  // Handled by the computed property and watch
+};
+
+const goToCouponDetails = (couponId) => {
+  router.push({ name: 'CouponDetails', params: { id: couponId } });
 };
 
 onMounted(async () => {
+  // First load categories
   await fetchCategories();
-  await loadAllCoupons();
-  window.addEventListener('userSignedUp', () => {
-    loadAllCoupons();
+  
+  // Then fetch coupons based on selected category
+  loading.value = true;
+  if (selectedCategory.value === 'All Coupons') {
+    await fetchCoupons();
+  } else {
+    await fetchCouponsByCategory(selectedCategory.value);
+  }
+  loading.value = false;
+  
+  // Listen for user sign up events
+  window.addEventListener('userSignedUp', async () => {
+    loading.value = true;
+    if (selectedCategory.value === 'All Coupons') {
+      await fetchCoupons();
+    } else {
+      await fetchCouponsByCategory(selectedCategory.value);
+    }
+    loading.value = false;
   });
 });
 

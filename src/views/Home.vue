@@ -50,7 +50,7 @@
           </ion-col>
           <ion-col>
             <ion-button expand="block" size="small" @click="openShop" color="primary">
-              <ion-icon slot="start" name="cart-shopping-regular" src="/src/icons/regular/cart-shopping-regular.svg"></ion-icon>
+              <ion-icon slot="start" name="cart-shopping-regular"></ion-icon>
               Shop Now
             </ion-button>
           </ion-col>
@@ -400,7 +400,7 @@ onIonViewWillEnter(async () => {
 // Add the openShop function
 const openShop = async () => {
   await Browser.open({
-    url: 'https://shop.brinksmarket.com',
+    url: 'https://www.mymarketdelivers.com/',
     presentationStyle: 'popover',
     windowName: '_blank'
   });

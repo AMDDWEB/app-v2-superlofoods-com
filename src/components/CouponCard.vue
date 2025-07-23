@@ -1,35 +1,43 @@
 <template>
-  <ion-card @click="handleCardClick">
-    <!-- Image Container -->
-    <ion-img v-if="decodedImageSrc" class="coupon-image-container" :src="decodedImageSrc"></ion-img>
-    <div v-else class="coupon-image-container">
-      <ion-spinner name="lines"></ion-spinner>
+  <div class="coupon-card-wrapper">
+    <!-- Custom Card with Badge -->
+    <div class="custom-card" @click="handleCardClick">
+      <!-- Category Badge -->
+      <div v-if="coupon.category_name" class="badge-container">
+        <ion-badge class="category-badge" color="success">{{ coupon.category_name }}</ion-badge>
+      </div>
+      
+      <!-- Image Container -->
+      <ion-img v-if="decodedImageSrc" class="coupon-image-container" :src="decodedImageSrc"></ion-img>
+      <div v-else class="coupon-image-container">
+        <ion-spinner name="lines"></ion-spinner>
+      </div>
+
+      <!-- Text Content -->
+      <span class="coupon-brand truncate">{{ coupon.subtitle }}</span>
+      <ion-card-title class="coupon-value ion-text-center truncate">{{ coupon.title }}</ion-card-title>
+      <span class="coupon-description truncate-multiline">{{ coupon.description }}</span>
+      <span class="coupon-expiration ion-text-center">Expires {{ formatExpDate(coupon.to_date) }}</span>
+
+      <!-- Button -->
+      <ion-button
+        size="small"
+        :color="isCouponClipped(coupon.id) ? 'success' : 'danger'"
+        fill="solid"
+        :disabled="isCouponClipped(coupon.id)"
+        @click.stop="handleClipClick">
+        <ion-icon slot="start" name="coupons-regular" />
+        {{ isCouponClipped(coupon.id) ? 'Clipped' : 'Clip Coupon' }}
+      </ion-button>
     </div>
-
-    <!-- Text Content -->
-    <span class="coupon-brand truncate">{{ coupon.subtitle }}</span>
-    <ion-card-title class="coupon-value ion-text-center truncate">{{ coupon.title }}</ion-card-title>
-    <span class="coupon-description truncate-multiline">{{ coupon.description }}</span>
-    <span class="coupon-expiration ion-text-center">Expires {{ formatExpDate(coupon.to_date) }}</span>
-
-    <!-- Button -->
-    <ion-button
-      size="small"
-      :color="isCouponClipped(coupon.id) ? 'success' : 'danger'"
-      fill="solid"
-      :disabled="isCouponClipped(coupon.id)"
-      @click.stop="handleClipClick">
-      <ion-icon slot="start" name="coupons-regular" />
-      {{ isCouponClipped(coupon.id) ? 'Clipped' : 'Clip Coupon' }}
-    </ion-button>
-  </ion-card>
-
-
+  </div>
+  
   <!-- Coupon Modal -->
   <ion-modal :is-open="showCouponModal" @didDismiss="closeCouponModal" :presenting-element="presentingElement"
     :initial-breakpoint="1" :breakpoints="[0, 1]">
     <ion-header>
       <ion-toolbar>
+        <ion-title>{{ coupon.subtitle }}</ion-title>
         <ion-buttons slot="end">
           <ion-button @click="closeCouponModal">Close</ion-button>
         </ion-buttons>
@@ -196,22 +204,59 @@ const handleClipClick = async (event) => {
 </script>
 
 <style scoped>
-/* Styles maintained as requested */
-ion-card {
-  padding-top: 10px;
+/* Card wrapper styles */
+.coupon-card-wrapper {
+  position: relative;
   margin: 0 4px;
-  border: 2px dashed var(--ion-color-light-shade);
-  box-shadow: none;
-  height: 280px;
+  height: 295px;
+}
+
+/* Main card styles */
+.custom-card {
+  position: relative;
+  height: 100%;
+  padding-top: 10px;
   display: flex;
   flex-direction: column;
   align-items: center;
   border-radius: 8px;
+  background-color: var(--ion-card-background, var(--ion-item-background, var(--ion-background-color, #fff)));
+}
+
+/* Dashed border */
+.custom-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border: 2px dashed var(--ion-color-light-shade);
+  border-radius: 8px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Badge container */
+.badge-container {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 20;
+}
+
+/* Badge style */
+.category-badge {
+  font-size: 0.7rem;
+  border-radius: 0 8px 0 6px;
+  margin: 0;
+  padding: 4px 8px;
 }
 
 .coupon-image-container {
   height: 100px;
   width: 100%;
+  margin-top: 20px; 
   display: flex;
   justify-content: center;
   align-items: center;
@@ -247,8 +292,8 @@ ion-card {
 }
 
 ion-button {
-  margin: 5px 10px;
-  height: 32px;
+  margin-bottom: 15px;
+  height: 30px;
   --border-width: 1.5px;
   width: 90%;
 }

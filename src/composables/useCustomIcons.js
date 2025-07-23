@@ -60,6 +60,7 @@ import trashNotificationsRegularIcon from '../icons/regular/trash-can-clock-regu
 import editGroceryListRegularIcon from '../icons/regular/regular-list-radio-pen.svg';
 import sortGroceryListRegularIcon from '../icons/regular/bars-filter-regular.svg';
 import trashCanRegularIcon from '../icons/regular/trash-can-regular.svg'
+import cartShoppingRegularIcon from '../icons/regular/cart-shopping-regular.svg'
 
 //Duotone icons
 import handwaveDuotoneIcon from '../icons/duotone/hand-wave-duotone-regular.svg';
@@ -122,7 +123,7 @@ const customIcons = {
   'edit-grocery-list-regular': editGroceryListRegularIcon,
   'sort-grocery-list-regular': sortGroceryListRegularIcon,
   'trash-can-regular': trashCanRegularIcon,
-
+  'cart-shopping-regular': cartShoppingRegularIcon,
   // Duotone icons are below 
   'hand-wave-duotone': handwaveDuotoneIcon,
 };

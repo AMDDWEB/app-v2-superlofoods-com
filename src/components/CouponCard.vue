@@ -35,15 +35,15 @@
   <!-- Coupon Modal -->
   <ion-modal :is-open="showCouponModal" @didDismiss="closeCouponModal" :presenting-element="presentingElement"
     :initial-breakpoint="1" :breakpoints="[0, 1]">
-    <ion-header>
-      <ion-toolbar>
-        <ion-title>{{ coupon.subtitle }}</ion-title>
-        <ion-buttons slot="end">
-          <ion-button @click="closeCouponModal">Close</ion-button>
-        </ion-buttons>
-        <ion-title>Coupon Details</ion-title>
-      </ion-toolbar>
-    </ion-header>
+    <div class="ion-page">
+      <ion-header translucent>
+        <ion-toolbar>
+          <ion-title>Coupon Details</ion-title>
+          <ion-buttons slot="end">
+            <ion-button @click="closeCouponModal">Close</ion-button>
+          </ion-buttons>
+        </ion-toolbar>
+      </ion-header>
 
     <ion-content>
       <ion-segment class="coupon-details-segment" v-model="selectedSegment">
@@ -57,7 +57,10 @@
 
       
       <div class="coupon-details-card" v-if="selectedSegment === 'details'">
-        <span class="coupon-details-label">{{ coupon.title }} on {{ coupon.subtitle }}</span><br>
+        <div class="product-info">
+          <h3>{{ coupon.subtitle }}</h3>
+          <span class="coupon-details-label">{{ coupon.title }}</span>
+        </div>
         <span class="coupon-details-text">{{ coupon.description }}</span>
       </div>
       <ion-img v-if="decodedImageSrc && selectedSegment === 'details'" class="coupon-details-image" :src="decodedImageSrc"></ion-img>
@@ -67,6 +70,7 @@
         <span class="coupon-details-text">{{ coupon.disclaimer }}</span>
       </div>
     </ion-content>
+    </div>
   </ion-modal>
 
   <!-- Signup Modal -->

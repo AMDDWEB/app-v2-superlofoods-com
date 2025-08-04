@@ -16,6 +16,11 @@
       <ion-label>Coupons</ion-label>
     </ion-tab-button>
 
+    <ion-tab-button tab="recipes" href="/tabs/recipes">
+      <ion-icon name="recipes-regular" />
+      <ion-label>Recipes</ion-label>
+    </ion-tab-button>
+
     <ion-tab-button tab="preferences" href="/tabs/preferences">
       <ion-icon name="more-regular" />
       <ion-label>More</ion-label>

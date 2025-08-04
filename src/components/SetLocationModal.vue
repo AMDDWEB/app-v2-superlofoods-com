@@ -1,9 +1,9 @@
 <template>
-  <ion-modal :is-open="isOpen" @didDismiss="closeModal" :swipe-to-close="true" :backdropDismiss="true">
+  <ion-modal :is-open="isOpen" @didDismiss="closeModal" :swipe-to-close="showCloseButton" :backdrop-dismiss="showCloseButton">
     <ion-header>
       <ion-toolbar>
         <ion-title>Select My Store</ion-title>
-        <ion-buttons slot="end">
+        <ion-buttons v-if="showCloseButton" slot="end">
           <ion-button @click="closeModal">Close</ion-button>
         </ion-buttons>
       </ion-toolbar>
@@ -45,7 +45,11 @@ import apiLocations from '../axios/apiLocations';
 const hasMidaxCoupons = import.meta.env.VITE_HAS_MIDAX_COUPONS === 'true';
 const props = defineProps({
   isOpen: Boolean,
-  currentLocation: Object
+  currentLocation: Object,
+  showCloseButton: {
+    type: Boolean,
+    default: true
+  }
 });
 
 const emit = defineEmits(['update:is-open', 'location-selected']);

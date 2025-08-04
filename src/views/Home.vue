@@ -11,13 +11,15 @@
           </ion-button>
         </ion-buttons>
         <ion-buttons slot="end">
+          <ion-button @click="navigateToSelectedStore" v-if="selectedLocation" class="ion-padding-end">
+            <ion-icon name="my-location-regular" size="medium"></ion-icon>
+          </ion-button>
 
           <ion-button @click="presentBarcodeModal" v-if="hasAppCardCoupons && loyaltyNumber" class="ion-padding-end">
             <ion-icon color="primary" name="my-barcode-regular" size="medium"></ion-icon>
           </ion-button>
 
-          <ion-button @click="$router.push('/grocery-list')"
-            class="ion-padding-end-small">
+          <ion-button @click="$router.push('/grocery-list')" class="ion-padding-end-small">
             <ion-icon color="primary" name="edit-grocery-list-regular" size="medium"></ion-icon>
           </ion-button>
         </ion-buttons>
@@ -45,7 +47,7 @@
           <ion-col v-if="hasRewards">
             <ion-button expand="block" size="small" @click="handleRewardsClick" color="primary">
               <ion-icon slot="start" name="rewards-regular"></ion-icon>
-              Rewards
+              Market +
             </ion-button>
           </ion-col>
           <ion-col>
@@ -54,12 +56,7 @@
               Shop Now
             </ion-button>
           </ion-col>
-          <ion-col>
-            <ion-button expand="block" size="small" @click="$router.push('/tabs/recipes')" color="primary">
-              <ion-icon slot="start" name="recipes-regular"></ion-icon>
-              Recipes
-            </ion-button>
-          </ion-col>
+
         </ion-row>
       </ion-grid>
 
@@ -84,11 +81,15 @@
       />
 
       <!-- Featured Recipes Carousel -->
-
+      <RecipeCarousel />
 
       <!-- Location Modal -->
-      <SetLocationModal :is-open="isLocationModalOpen" @update:is-open="isLocationModalOpen = $event"
-        @location-selected="handleLocationSelected" />
+      <SetLocationModal 
+        :is-open="isLocationModalOpen" 
+        :show-close-button="!isInitialLocationCheck"
+        @update:is-open="isLocationModalOpen = $event"
+        @location-selected="handleLocationSelected" 
+      />
 
       <!-- Pdf Viewer Modal -->
       <PdfViewerModal :is-open="pdfModalState.isOpen" :pdf-url="pdfModalState.url" :ad-type="pdfModalState.type"
@@ -110,6 +111,7 @@ import SpotlightsCarousel from '@/components/SpotlightsCarousel.vue';
 import SetLocationModal from '@/components/SetLocationModal.vue';
 import PdfViewerModal from '@/components/PdfViewerModal.vue';
 import CouponsCarousel from '@/components/CouponsCarousel.vue';
+import RecipeCarousel from '@/components/RecipeCarousel.vue';
 import { IonPage, IonHeader, IonToolbar, IonContent, IonButtons, IonButton, IonIcon, IonTitle, IonImg, IonGrid, IonRow, IonCol } from '@ionic/vue';
 import { useRouter } from 'vue-router';
 import { useLocationDetails } from '@/composables/useLocationDetails';
@@ -148,8 +150,8 @@ const logoUrl = ref(import.meta.env.VITE_PRIMARY_LOGO);
 const hasAppCardCoupons = ref(import.meta.env.VITE_HAS_APPCARD_COUPONS === "true");
 const hasMidaxCoupons = ref(import.meta.env.VITE_HAS_MIDAX_COUPONS === "true");
 const notificationsAvailable = ref(false);
-
-// Add pdfModalState ref
+const isInitialLocationCheck = ref(true); // Track if this is the initial location check
+const isLocationModalOpen = ref(false);
 const pdfModalState = ref({
   isOpen: false,
   url: '',
@@ -159,11 +161,15 @@ const pdfModalState = ref({
 
 const requestNotificationPermission = inject('requestNotificationPermission');
 
-// Add this with other refs at the top
-const isLocationModalOpen = ref(false);
-
 // Add router to imports if not already present
 const router = useRouter();
+
+// Navigate to the selected store's details page
+const navigateToSelectedStore = () => {
+  if (selectedLocation.value?.id) {
+    router.push(`/locations/${selectedLocation.value.id}`);
+  }
+};
 
 // Add a watch for debugging
 watch(selectedLocation, () => {
@@ -186,7 +192,7 @@ const hasRewards = computed(() => {
   if (selectedLocation.value?.rewards_url) return true;
   // Fallback to legacy ads array
   const rewardsAd = selectedLocation.value?.ads?.find(ad =>
-    ad.ad_type?.some(type => type.type_name === 'Reward')
+    ad.ad_type?.some(type => type.type_name === 'Rewards')
   );
   return Boolean(rewardsAd);
 });
@@ -202,11 +208,19 @@ async function checkSelectedLocation() {
       if (freshLocationData) {
         updateSelectedLocation(freshLocationData);
         localStorage.setItem('selectedLocation', JSON.stringify(freshLocationData));
+        isInitialLocationCheck.value = false; // Initial check complete
+        return true;
       }
     } catch (error) {
       // Error handling silently
     }
   }
+  // If we get here, either there was no stored location or it was invalid
+  // Show the location modal if we're not already showing it
+  if (!isLocationModalOpen.value) {
+    isLocationModalOpen.value = true;
+  }
+  return false;
 }
 
 // Update onIonViewDidEnter to always refresh data
@@ -319,10 +333,21 @@ const openPdfModal = (type) => {
       break;
     }
     case 'rewards': {
+      // First check for direct rewards_url
       if (selectedLocation.value.rewards_url) {
         modalData.url = selectedLocation.value.rewards_url;
-        modalData.type = selectedLocation.value.rewards_type || 'Reward';
+        modalData.type = selectedLocation.value.rewards_type || 'Rewards';
         modalData.startDate = selectedLocation.value.rewards_start_date || '';
+      } else {
+        // Fall back to finding in ads array
+        const rewardsAd = selectedLocation.value.ads?.find(ad => 
+          ad.ad_type?.some(type => type.type_name === 'Rewards')
+        );
+        if (rewardsAd) {
+          modalData.url = rewardsAd.file_url;
+          modalData.type = rewardsAd.ad_type?.[0]?.type_name || 'Rewards';
+          modalData.startDate = rewardsAd.ad_start_date || '';
+        }
       }
       break;
     }

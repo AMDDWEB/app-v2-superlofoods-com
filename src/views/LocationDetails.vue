@@ -97,7 +97,7 @@
             <ion-col v-if="hasRewards">
               <ion-button expand="block" size="small" @click="openRewardsURL">
                 <ion-icon slot="start" name="rewards-regular"></ion-icon>
-                Rewards
+                Market +
               </ion-button>
             </ion-col>
             <ion-col v-if="hasSale">
@@ -381,7 +381,14 @@ const setAsMyStore = async () => {
 };
 
 const hasWeeklyAd = computed(() => !!locationData.value?.weekly_ad_url);
-const hasRewards = computed(() => !!locationData.value?.rewards_url);
+const hasRewards = computed(() => {
+  if (locationData.value?.rewards_url) return true;
+  // Check for rewards in ads array
+  const rewardsAd = locationData.value?.ads?.find(ad => 
+    ad.ad_type?.some(type => type.type_name === 'Rewards')
+  );
+  return Boolean(rewardsAd);
+});
 const hasSale = computed(() => !!locationData.value?.sale_url);
 
 // Replace individual modal refs with a single state object
@@ -410,9 +417,22 @@ const openPdfModal = (type) => {
       modalData.startDate = locationData.value.weekly_ad_start_date;
       break;
     case 'rewards':
-      modalData.url = locationData.value.rewards_url;
-      modalData.type = locationData.value.rewards_type;
-      modalData.startDate = locationData.value.rewards_start_date;
+      // First check for direct rewards_url
+      if (locationData.value.rewards_url) {
+        modalData.url = locationData.value.rewards_url;
+        modalData.type = locationData.value.rewards_type;
+        modalData.startDate = locationData.value.rewards_start_date;
+      } else {
+        // Fall back to finding in ads array
+        const rewardsAd = locationData.value.ads?.find(ad => 
+          ad.ad_type?.some(type => type.type_name === 'Rewards')
+        );
+        if (rewardsAd) {
+          modalData.url = rewardsAd.file_url;
+          modalData.type = rewardsAd.ad_type?.[0]?.type_name || 'Rewards';
+          modalData.startDate = rewardsAd.ad_start_date;
+        }
+      }
       break;
     case 'sale':
       modalData.url = locationData.value.sale_url;

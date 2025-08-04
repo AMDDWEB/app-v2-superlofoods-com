@@ -24,8 +24,12 @@
           <CouponCard :coupon="coupon" @click="goToCouponDetails(coupon.id)" @clip="handleClipCoupon(coupon.id)" />
         </swiper-slide>
       </swiper>
-      <div v-else-if="!loading && displayCoupons.length === 0" class="no-coupons-message">
-        <p>No coupons available at this time.</p>
+      <div v-else class="no-store-container">
+        <div class="no-store-card">
+          <div class="overlay"></div>
+          <h3>No Coupons Available</h3>
+          <p>Check back later for new deals.</p>
+        </div>
       </div>
     </div>
     <div v-else>

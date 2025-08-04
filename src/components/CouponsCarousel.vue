@@ -24,13 +24,9 @@
           <CouponCard :coupon="coupon" @click="goToCouponDetails(coupon.id)" @clip="handleClipCoupon(coupon.id)" />
         </swiper-slide>
       </swiper>
-      <!-- <div v-else class="no-store-container">
-        <div class="no-store-card">
-          <div class="overlay"></div>
-          <h3>No Coupons Available</h3>
-          <p>Check back later for new deals.</p>
-        </div>
-      </div> -->
+      <div v-else-if="!loading && displayCoupons.length === 0" class="no-coupons-message">
+        <p>No coupons available at this time.</p>
+      </div>
     </div>
     <div v-else>
       <CouponsSkeleton :count="1" />
@@ -60,6 +56,10 @@ const props = defineProps({
     type: String,
     default: null
   },
+  excludeCategories: {
+    type: Array,
+    default: () => []
+  },
   title: {
     type: String,
     default: 'Clip & Save Coupons'
@@ -71,7 +71,7 @@ const props = defineProps({
 });
 
 const router = useRouter();
-const { loading, fetchCoupons, fetchWeeklySpecialsCoupons } = useCouponDetails();
+const { loading, fetchCoupons, fetchWeeklySpecials } = useCouponDetails();
 // Create local coupons state to prevent state sharing between carousels
 const localCoupons = ref([]);
 const { 
@@ -100,15 +100,40 @@ const loadAllCoupons = async () => {
   
   if (currentStoreId) {
     try {
+      let response;
       // Check if we need to fetch Weekly Specials or regular coupons
       if (props.category === 'Weekly Specials') {
         // Use Weekly Specials filter
-        const response = await fetchWeeklySpecialsCoupons(props.limit, 0);
-        localCoupons.value = response.items || [];
+        response = await fetchWeeklySpecials(props.limit, 0);
+      } else if (props.category) {
+        // Fetch with specific category if provided
+        response = await fetchCoupons({ 
+          limit: props.limit, 
+          offset: 0, 
+          category: props.category,
+          excludeCategories: props.excludeCategories || []
+        });
       } else {
         // Regular coupons (no category filter)
-        const response = await fetchCoupons({ limit: props.limit, offset: 0 });
-        localCoupons.value = response.items || [];
+        response = await fetchCoupons({ 
+          limit: props.limit, 
+          offset: 0,
+          excludeCategories: props.excludeCategories || []
+        });
+      }
+      
+      // Handle both response formats: direct array or object with items property
+      if (Array.isArray(response)) {
+        localCoupons.value = response;
+      } else if (response && Array.isArray(response.items)) {
+        localCoupons.value = response.items;
+      } else if (response && response.data && Array.isArray(response.data.items)) {
+        localCoupons.value = response.data.items;
+      } else if (response && response.data && Array.isArray(response.data)) {
+        localCoupons.value = response.data;
+      } else {
+        console.warn('Unexpected API response format:', response);
+        localCoupons.value = [];
       }
     } catch (error) {
       console.error('Error loading coupons:', error);
@@ -201,24 +226,25 @@ const handleStorageChange = (event) => {
 
 onMounted(async () => {
   // Initialize storeId from localStorage
-  storeId.value = localStorage.getItem('storeId');
+  const currentStoreId = localStorage.getItem('storeId');
+  storeId.value = currentStoreId;
   
-
-  if (hasMidaxCoupons.value) {
-    // Only check for location if using Midax system
-    if (storeId.value) {
+  // Always try to load coupons if we have a store ID
+  if (currentStoreId) {
     await loadAllCoupons();
   }
-  } else {
-    // For AppCard, fetch coupons immediately
-    await loadAllCoupons();
-  }
+  
+  // Log for debugging
+  console.log('CouponsCarousel mounted with storeId:', currentStoreId);
   
   // Listen for location change events
   window.addEventListener('locationChanged', handleLocationChanged);
   
   // Listen for storage events to catch direct localStorage changes
   window.addEventListener('storage', handleStorageChange);
+  
+  // Also listen for custom event that might be triggered after location selection
+  window.addEventListener('locationUpdated', loadAllCoupons);
 });
 
 // Clean up event listeners when component is unmounted

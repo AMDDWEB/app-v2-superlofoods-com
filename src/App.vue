@@ -5,7 +5,7 @@
     <!-- Global Error Alert for coupon clipping -->
     <ion-alert
       :is-open="showErrorAlert"
-      header="Error"
+      header="Notice"
       :message="errorMessage"
       :buttons="[{ text: 'OK', role: 'cancel', handler: () => closeErrorAlert() }]"
     />

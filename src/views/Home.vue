@@ -63,20 +63,21 @@
       <!-- Spotlights Carousel -->
       <SpotlightsCarousel :spotlights="spotlights" />
       
-      <!-- Weekly Specials Coupons Carousel -->
+      <!-- Weekly Specials Carousel -->
       <CouponsCarousel 
-        v-if="hasAppCardCoupons || hasMidaxCoupons" 
+        v-if="(hasAppCardCoupons || hasMidaxCoupons) && selectedLocation" 
         category="Weekly Specials"
-        title="Weekly Specials"
-        subtitle="Don't miss this week's exclusive deals!"
+        title="This Week's Specials"
+        subtitle="Check out this week's exclusive deals!"
         :limit="10"
       />
       
-      <!-- General Coupons Carousel -->
+      <!-- Regular Coupons Carousel (excludes weekly specials) -->
       <CouponsCarousel 
-        v-if="hasAppCardCoupons || hasMidaxCoupons" 
+        v-if="(hasAppCardCoupons || hasMidaxCoupons) && selectedLocation" 
         title="Clip & Save Coupons"
         subtitle="Unlock exclusive savings – limited time only!"
+        :exclude-categories="['Weekly Specials']"
         :limit="10"
       />
 
@@ -289,6 +290,13 @@ function openLocationModal() {
 async function handleLocationSelected(location) {
   updateSelectedLocation(location);
   localStorage.setItem('selectedLocation', JSON.stringify(location));
+  
+  // Dispatch a custom event to notify components about the location update
+  const locationUpdatedEvent = new CustomEvent('locationUpdated', {
+    detail: { location }
+  });
+  window.dispatchEvent(locationUpdatedEvent);
+  
   await fetchLocationData();
   await getData();
 }

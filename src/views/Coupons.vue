@@ -54,8 +54,8 @@
           <ion-spinner name="crescent" class="app-loading-spinner"></ion-spinner>
         </div>
         
-        <ion-toast v-else-if="selectedView === 'clipped' && displayedCoupons.length === 0"
-          :is-open="selectedView === 'clipped' && displayedCoupons.length === 0"
+        <ion-toast v-else-if="selectedView === 'clipped' && displayedCoupons.length === 0 && !isProcessingCoupons"
+          :is-open="selectedView === 'clipped' && displayedCoupons.length === 0 && !isProcessingCoupons"
           message="When clipped, your coupons will be located here."
           color="danger"
           duration="3000"
@@ -116,9 +116,9 @@ import { IonPage, IonHeader, IonToolbar, IonContent, IonSegment, IonSegmentButto
 import { defineComponent } from 'vue';
 
 const router = useRouter();
-const { coupons, loading, fetchCoupons, availableCategories, fetchCategories, fetchCouponsByCategory, categoryMap, isMidax } = useCouponDetails();
+const { coupons, loading, fetchCoupons, availableCategories, fetchCategories, isMidax } = useCouponDetails();
 const { SignupModal } = useSignupModal();
-const { isCouponClipped, syncClippedCoupons, showErrorAlert, errorMessage, closeErrorAlert } = useClippedCoupons();
+const { isCouponClipped, syncClippedCoupons, showErrorAlert, errorMessage, closeErrorAlert, cleanupExpiredCoupons } = useClippedCoupons();
 
 const offset = ref(0);
 const limit = ref(isMidax.value ? 20 : 1000);
@@ -127,6 +127,7 @@ const selectedCategory = ref('All Coupons');
 const searchQuery = ref('');
 const searchTimeout = ref(null);
 const uniqueCouponIds = ref(new Set());
+const isProcessingCoupons = ref(false); // Track if we're still processing coupons
 
 const sortedCategories = computed(() => {
   // Exclude "All Coupons" and "Weekly Specials" from alphabetical sort
@@ -154,16 +155,14 @@ watch(coupons, (newCoupons) => {
 // Watch for changes to selectedView to cleanup expired coupons when viewing clipped
 watch(selectedView, async (newView) => {
   if (newView === 'clipped') {
-    await cleanupExpiredCoupons();
-  }
-});
-
-// Watch for changes to selectedCategory to fetch coupons by category
-watch(selectedCategory, async (newCategory) => {
-  if (newCategory) {
-    loading.value = true;
-    const response = await fetchCouponsByCategory(newCategory);
-    loading.value = false;
+    isProcessingCoupons.value = true;
+    try {
+      await cleanupExpiredCoupons();
+      // Small delay to ensure the UI updates
+      await new Promise(resolve => setTimeout(resolve, 50));
+    } finally {
+      isProcessingCoupons.value = false;
+    }
   }
 });
 
@@ -180,6 +179,11 @@ watch(searchQuery, (newQuery) => {
 });
 
 const displayedCoupons = computed(() => {
+  // If we're still loading, return an empty array to show loading state
+  if (loading.value) {
+    return [];
+  }
+
   let filtered = [...coupons.value]; // Create a shallow copy to avoid mutating the original array
 
   // Filter by category if not "All Coupons"
@@ -287,40 +291,57 @@ const loadAllCoupons = async () => {
 };
 
 const setCategory = async (category) => {
+  // Don't do anything if clicking the same category
+  if (selectedCategory.value === category) return;
+  
+  // Set loading and processing states
+  loading.value = true;
+  isProcessingCoupons.value = true;
+  const previousCategory = selectedCategory.value;
   selectedCategory.value = category;
-  // The watch will handle the fetching
-};
-
-const handleSearch = () => {
-  // Handled by the computed property and watch
+  
+  try {
+    // Reset the coupons array to trigger loading state
+    coupons.value = [];
+    
+    // Small delay to ensure UI updates the loading state
+    await new Promise(resolve => setTimeout(resolve, 50));
+    
+    // Load the coupons for the new category
+    await loadAllCoupons();
+    
+    // Small delay to ensure the UI has time to update
+    await new Promise(resolve => setTimeout(resolve, 100));
+  } catch (error) {
+    console.error('Error loading category:', category, error);
+  } finally {
+    // Only update states if we're still on the same category
+    if (selectedCategory.value === category) {
+      loading.value = false;
+      // Small delay before marking as done processing to prevent flash of empty state
+      setTimeout(() => {
+        isProcessingCoupons.value = false;
+      }, 100);
+    } else {
+      // If category changed while loading, make sure to reset processing state
+      isProcessingCoupons.value = false;
+    }
+  }
 };
 
 const goToCouponDetails = (couponId) => {
-  router.push({ name: 'CouponDetails', params: { id: couponId } });
+  router.push(`/coupons/${couponId}`);
+};
+
+const handleSearch = () => {
+  // Debouncing is handled by the watch function
 };
 
 onMounted(async () => {
-  // First load categories
   await fetchCategories();
-  
-  // Then fetch coupons based on selected category
-  loading.value = true;
-  if (selectedCategory.value === 'All Coupons') {
-    await fetchCoupons();
-  } else {
-    await fetchCouponsByCategory(selectedCategory.value);
-  }
-  loading.value = false;
-  
-  // Listen for user sign up events
-  window.addEventListener('userSignedUp', async () => {
-    loading.value = true;
-    if (selectedCategory.value === 'All Coupons') {
-      await fetchCoupons();
-    } else {
-      await fetchCouponsByCategory(selectedCategory.value);
-    }
-    loading.value = false;
+  await loadAllCoupons();
+  window.addEventListener('userSignedUp', () => {
+    loadAllCoupons();
   });
 });
 

@@ -99,7 +99,7 @@ import {
 import { cut, calendarOutline, arrowBackOutline } from 'ionicons/icons';
 import { useSignupModal } from '@/composables/useSignupModal';
 import { useClippedCoupons } from '@/composables/useClippedCoupons';
-import CouponsApi from '@/axios/apiCoupons';
+import Coupons from '@/axios/apiCoupons';
 import { TokenStorage } from '@/utils/tokenStorage';
 
 const props = defineProps({
@@ -128,8 +128,8 @@ const fetchCouponDetails = async () => {
       throw new Error('No store ID found in localStorage');
     }
     
-    // Call the updated getCouponById with locationId and offerId
-    const response = await CouponsApi.getCouponById(locationId, props.id);
+    // Call the updated getCouponByID with locationId and offerId
+    const response = await Coupons.getCouponByID(locationId, props.id);
     
     // Fix: The API returns an array, so we need to get the first item
     let couponData = null;
@@ -178,7 +178,18 @@ const handleClipClick = async () => {
 
   isClipping.value = true;
   try {
-    const response = await CouponsApi.clipCoupon(props.id);
+    const cardNumber = localStorage.getItem('cardNumber') || localStorage.getItem('CardNumber');
+    if (!cardNumber) {
+      throw new Error('No card number found');
+    }
+    
+    const couponData = {
+      offer_id: props.id.toString(),
+      app_id: import.meta.env.VITE_APP_ID,
+      provider: "QUOT"
+    };
+    
+    const response = await Coupons.clipCoupon(cardNumber, couponData);
     // If we get here without an error, the clip was successful
     addClippedCoupon(props.id);
   } catch (error) {

@@ -47,7 +47,7 @@
           <ion-col v-if="hasRewards">
             <ion-button expand="block" size="small" @click="handleRewardsClick" color="primary">
               <ion-icon slot="start" name="rewards-regular"></ion-icon>
-              Market +
+              Market+
             </ion-button>
           </ion-col>
           <ion-col>

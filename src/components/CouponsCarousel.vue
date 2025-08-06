@@ -76,15 +76,8 @@ const props = defineProps({
 
 const router = useRouter();
 const { loading, fetchCoupons, fetchWeeklySpecials } = useCouponDetails();
-// Create local coupons state to prevent state sharing between carousels
 const localCoupons = ref([]);
-const { 
-  addClippedCoupon, 
-  showErrorAlert, 
-  errorMessage, 
-  closeErrorAlert, 
-  loadClippedCoupons 
-} = useClippedCoupons();
+const { addClippedCoupon, loadClippedCoupons } = useClippedCoupons();
 const hasMidaxCoupons = ref(import.meta.env.VITE_HAS_MIDAX_COUPONS === "true");
 const storeId = ref(localStorage.getItem('storeId'));
 const hasStoreId = computed(() => !!storeId.value);
@@ -97,107 +90,100 @@ const onSwiper = (swiper) => {
   // Store swiper instance if needed for later manipulation
 };
 
-// Function to check if we should load coupons and clipped coupons
+/**
+ * Loads coupons based on the current category and applies necessary filters
+ */
 const loadAllCoupons = async () => {
   const currentStoreId = localStorage.getItem('storeId');
   const currentCardNumber = localStorage.getItem('CardNumber');
   
-  if (currentStoreId) {
-    try {
-      let response;
-      // Check if we need to fetch Weekly Specials or regular coupons
+  if (!currentStoreId) return;
+
+  try {
+    const response = await (async () => {
       if (props.category === 'Weekly Specials') {
-        // Use Weekly Specials filter
-        response = await fetchWeeklySpecials(props.limit, 0);
-      } else if (props.category) {
-        // Fetch with specific category if provided
-        response = await fetchCoupons({ 
-          limit: props.limit * 2, // Fetch a few more than needed in case some get filtered out
-          offset: 0, 
-          category: props.category
-        });
-      } else {
-        // For general coupons, fetch a small batch at a time
-        response = await fetchCoupons({ 
-          limit: 10, // Fetch a small batch to avoid payload size issues
-          offset: 0
-        });
+        return await fetchWeeklySpecials(props.limit, 0);
       }
       
-      // Handle both response formats: direct array or object with items property
-      let coupons = [];
-      if (Array.isArray(response)) {
-        coupons = [...response];
-      } else if (response && Array.isArray(response.items)) {
-        coupons = [...response.items];
-      } else if (response?.data?.items) {
-        coupons = Array.isArray(response.data.items) ? [...response.data.items] : [];
-      } else if (response?.data) {
-        coupons = Array.isArray(response.data) ? [...response.data] : [];
-      } else {
-        console.warn('Unexpected API response format:', response);
-        coupons = [];
-      }
+      const params = { 
+        limit: props.category ? props.limit * 2 : 10, // Fetch more if we need to filter
+        offset: 0
+      };
       
-      // Apply client-side filtering
       if (props.category) {
-        // If a specific category is requested, only show that category
-        localCoupons.value = coupons.filter(coupon => 
-          coupon?.category === props.category
-        ).slice(0, props.limit);
-      } else {
-        // Otherwise, exclude Weekly Specials
-        localCoupons.value = coupons.filter(coupon => 
-          coupon?.category !== 'Weekly Specials'
-        ).slice(0, props.limit);
+        params.category = props.category;
       }
-    } catch (error) {
-      console.error('Error loading coupons:', error);
-      localCoupons.value = [];
-    }
+      
+      return await fetchCoupons(params);
+    })();
     
-    // If user is logged in (has card number), load their clipped coupons
-    if (currentCardNumber) {
-      await loadClippedCoupons();
-    }
+    // Normalize response to array of coupons
+    const coupons = Array.isArray(response)
+      ? [...response]
+      : Array.isArray(response?.items)
+        ? [...response.items]
+        : Array.isArray(response?.data?.items)
+          ? [...response.data.items]
+          : Array.isArray(response?.data)
+            ? [...response.data]
+            : [];
+    
+    // Apply filters
+    localCoupons.value = coupons
+      .filter(coupon => 
+        props.category 
+          ? coupon?.category === props.category 
+          : coupon?.category !== 'Weekly Specials'
+      )
+      .slice(0, props.limit);
+  } catch (error) {
+    console.error('Error loading coupons:', error);
+    localCoupons.value = [];
+  }
+  
+  // Load clipped coupons for logged-in users
+  if (currentCardNumber) {
+    await loadClippedCoupons();
   }
 };
 
 // Watch for location changes
-watch(() => localStorage.getItem('selectedLocation'), async (newLocation) => {
-  if (newLocation) {
-    storeId.value = localStorage.getItem('storeId');
-    await loadAllCoupons();
+watch(
+  () => localStorage.getItem('selectedLocation'), 
+  async (newLocation) => {
+    if (newLocation) {
+      storeId.value = localStorage.getItem('storeId');
+      await loadAllCoupons();
+    }
   }
-});
+);
 
 // Watch for authentication changes
-watch(() => TokenStorage.hasTokens(), async (isAuthenticated) => {
-  if (isAuthenticated) {
-    // When user logs in, reload everything
-    await loadAllCoupons();
+watch(
+  () => TokenStorage.hasTokens(), 
+  async (isAuthenticated) => {
+    if (isAuthenticated) {
+      await loadAllCoupons();
+    }
   }
-});
+);
 
-// Watch for user sign up events (in case of new registration)
-window.addEventListener('userSignedUp', async () => {
-  await loadAllCoupons();
-});
+// Handle user sign up events
+window.addEventListener('userSignedUp', loadAllCoupons);
 
-// Handle coupon clipping result
+/**
+ * Handles the coupon clipping action
+ */
 const handleClipCoupon = async (couponId) => {
-  if (!TokenStorage.hasTokens()) {
-    return;
-  }
+  if (!TokenStorage.hasTokens()) return;
 
   try {
     await CouponsApi.clipCoupon(couponId);
     addClippedCoupon(couponId);
-
-    // Find and update the coupon directly without creating a new array
-    const coupon = localCoupons.value.find(coupon => coupon.id === couponId);
+    
+    // Update the clipped status in the local state
+    const coupon = localCoupons.value.find(c => c.id === couponId);
     if (coupon) {
-      // Use direct property assignment to maintain reactivity
       coupon.clipped = true;
     }
   } catch (error) {

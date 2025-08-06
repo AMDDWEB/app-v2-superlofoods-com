@@ -112,32 +112,44 @@ const loadAllCoupons = async () => {
       } else if (props.category) {
         // Fetch with specific category if provided
         response = await fetchCoupons({ 
-          limit: props.limit, 
+          limit: props.limit * 2, // Fetch a few more than needed in case some get filtered out
           offset: 0, 
-          category: props.category,
-          excludeCategories: props.excludeCategories || []
+          category: props.category
         });
       } else {
-        // Regular coupons (no category filter)
+        // For general coupons, fetch a small batch at a time
         response = await fetchCoupons({ 
-          limit: props.limit, 
-          offset: 0,
-          excludeCategories: props.excludeCategories || []
+          limit: 10, // Fetch a small batch to avoid payload size issues
+          offset: 0
         });
       }
       
       // Handle both response formats: direct array or object with items property
+      let coupons = [];
       if (Array.isArray(response)) {
-        localCoupons.value = response;
+        coupons = [...response];
       } else if (response && Array.isArray(response.items)) {
-        localCoupons.value = response.items;
-      } else if (response && response.data && Array.isArray(response.data.items)) {
-        localCoupons.value = response.data.items;
-      } else if (response && response.data && Array.isArray(response.data)) {
-        localCoupons.value = response.data;
+        coupons = [...response.items];
+      } else if (response?.data?.items) {
+        coupons = Array.isArray(response.data.items) ? [...response.data.items] : [];
+      } else if (response?.data) {
+        coupons = Array.isArray(response.data) ? [...response.data] : [];
       } else {
         console.warn('Unexpected API response format:', response);
-        localCoupons.value = [];
+        coupons = [];
+      }
+      
+      // Apply client-side filtering
+      if (props.category) {
+        // If a specific category is requested, only show that category
+        localCoupons.value = coupons.filter(coupon => 
+          coupon?.category === props.category
+        ).slice(0, props.limit);
+      } else {
+        // Otherwise, exclude Weekly Specials
+        localCoupons.value = coupons.filter(coupon => 
+          coupon?.category !== 'Weekly Specials'
+        ).slice(0, props.limit);
       }
     } catch (error) {
       console.error('Error loading coupons:', error);

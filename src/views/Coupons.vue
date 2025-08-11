@@ -116,7 +116,7 @@ import { IonPage, IonHeader, IonToolbar, IonContent, IonSegment, IonSegmentButto
 import { defineComponent } from 'vue';
 
 const router = useRouter();
-const { coupons, loading, fetchCoupons, availableCategories, fetchCategories, isMidax } = useCouponDetails();
+const { coupons, loading, fetchCoupons, availableCategories, fetchCategories, isMidax, getCategoryByName } = useCouponDetails();
 const { SignupModal } = useSignupModal();
 const { isCouponClipped, syncClippedCoupons, showErrorAlert, errorMessage, closeErrorAlert, cleanupExpiredCoupons } = useClippedCoupons();
 
@@ -186,9 +186,15 @@ const displayedCoupons = computed(() => {
 
   let filtered = [...coupons.value]; // Create a shallow copy to avoid mutating the original array
 
-  // Filter by category if not "All Coupons"
+  // Filter by category if not "All Coupons" (support both string and object categories)
   if (selectedCategory.value !== 'All Coupons') {
-    filtered = filtered.filter(coupon => coupon.category === selectedCategory.value);
+    filtered = filtered.filter(coupon => {
+      const cat = coupon.category;
+      const catName = typeof cat === 'string' 
+        ? cat 
+        : (cat?.Name || cat?.name || '');
+      return catName === selectedCategory.value;
+    });
   }
 
   // Filter by clipped status
@@ -265,7 +271,15 @@ const loadAllCoupons = async () => {
 
   try {
     while (totalLoaded < maxCoupons) {
-      const response = await fetchCoupons({ limit: limit.value, offset: offset.value });
+      // Prefer server-side filtering by category when possible
+      const categoryObj = getCategoryByName(selectedCategory.value);
+      const response = await fetchCoupons({ 
+        limit: limit.value, 
+        offset: offset.value,
+        category: categoryObj || null,
+        manageLoading: false,
+        skipState: true
+      });
       const items = response?.items || response?.data?.items || [];
 
       if (items.length === 0) {
@@ -280,8 +294,8 @@ const loadAllCoupons = async () => {
       totalLoaded += newCoupons.length;
       offset.value += limit.value;
 
-      // Optional: Add a small delay to avoid overwhelming the API
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Small delay to avoid overwhelming the API when paginating
+      await new Promise(resolve => setTimeout(resolve, 50));
     }
   } catch (error) {
     console.error('Error loading all coupons:', error);

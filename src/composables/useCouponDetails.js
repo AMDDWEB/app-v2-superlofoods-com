@@ -4,6 +4,8 @@ import Coupons from '@/axios/apiCoupons'
 const coupons = ref([]);
 const loading = ref(false);
 const categories = ref([]);
+// Preserve full category objects from the API for ID lookups
+const categoriesData = ref([]);
 const selectedSort = ref('newest');
 const allCoupons = ref([]);
 const isMidax = ref(import.meta.env.VITE_HAS_MIDAX_COUPONS === "true");
@@ -13,10 +15,12 @@ export function useCouponDetails() {
   const fetchCoupons = async ({
     limit = isMidax.value ? 20 : 1000,
     offset = 0,
-    category = null
+    category = null,
+    manageLoading = true,
+    skipState = false
   } = {}) => {
     try {
-      if (offset === 0) {
+      if (manageLoading && offset === 0) {
         loading.value = true;
       }
 
@@ -33,15 +37,17 @@ export function useCouponDetails() {
         category
       );
 
-      if (offset === 0) {
-        // Reset coupons if this is the first batch
-        coupons.value = response.data?.items || response.data || [];
-      } else if (isMidax.value) {
-        // Append new coupons only for Midax, ensuring no duplicates
-        const newCoupons = response.data?.items || response.data || [];
-        const existingIds = new Set(coupons.value.map(coupon => coupon.id));
-        const uniqueNewCoupons = newCoupons.filter(coupon => !existingIds.has(coupon.id));
-        coupons.value = [...coupons.value, ...uniqueNewCoupons];
+      if (!skipState) {
+        if (offset === 0) {
+          // Reset coupons if this is the first batch
+          coupons.value = response.data?.items || response.data || [];
+        } else if (isMidax.value) {
+          // Append new coupons only for Midax, ensuring no duplicates
+          const newCoupons = response.data?.items || response.data || [];
+          const existingIds = new Set(coupons.value.map(coupon => coupon.id));
+          const uniqueNewCoupons = newCoupons.filter(coupon => !existingIds.has(coupon.id));
+          coupons.value = [...coupons.value, ...uniqueNewCoupons];
+        }
       }
 
       return response;
@@ -49,7 +55,7 @@ export function useCouponDetails() {
       console.error('Error fetching coupons:', error);
       return { data: { items: [] } };
     } finally {
-      if (offset === 0) {
+      if (manageLoading && offset === 0) {
         loading.value = false;
       }
     }
@@ -66,6 +72,8 @@ export function useCouponDetails() {
       const categoriesResponse = await Coupons.getCouponCategories(locationId);
       
       if (categoriesResponse.data && Array.isArray(categoriesResponse.data)) {
+        // Keep raw data for lookups
+        categoriesData.value = categoriesResponse.data;
         // Find the Weekly Specials category
         const weeklySpecials = categoriesResponse.data.find(
           cat => cat.Name.toLowerCase().includes('weekly') || cat.Name.toLowerCase().includes('specials')
@@ -83,15 +91,23 @@ export function useCouponDetails() {
       } else {
         console.warn('Unexpected categories response format:', categoriesResponse);
         categories.value = ['All Coupons'];
+        categoriesData.value = [];
       }
       
     } catch (error) {
       console.error('Error fetching categories:', error);
       categories.value = ['All Coupons'];
+      categoriesData.value = [];
     }
   };
 
   const availableCategories = computed(() => categories.value);
+
+  // Helper to look up category object (for server-side filtering by ID)
+  const getCategoryByName = (name) => {
+    if (!name || name === 'All Coupons') return null;
+    return categoriesData.value.find(cat => cat.Name === name) || null;
+  };
 
   // Function to fetch weekly specials using the stored category ID
   const fetchWeeklySpecials = async (limit = 10, offset = 0) => {
@@ -119,6 +135,7 @@ export function useCouponDetails() {
     fetchWeeklySpecials,
     availableCategories,
     isMidax,
-    weeklySpecialsCategory: computed(() => weeklySpecialsCategory.value)
+    weeklySpecialsCategory: computed(() => weeklySpecialsCategory.value),
+    getCategoryByName
   };
 } 

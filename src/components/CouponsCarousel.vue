@@ -1,6 +1,6 @@
 <template>
   <div class="ion-margin-bottom">
-    <ion-list lines="none" v-if="(!hasMidaxCoupons || hasStoreId) && displayCoupons.length > 0">
+    <ion-list lines="none" v-if="(!hasMidaxCoupons || hasStoreId) && displayCoupons.length > 0 && !showSkeleton">
       <ion-item @click="goToCouponsArchive">
         <ion-text>
           <h3 class="app-list-heading">
@@ -12,34 +12,36 @@
       </ion-item>
     </ion-list>
 
-    <div v-if="!loading">
-      <swiper 
-        v-if="(!hasMidaxCoupons || hasStoreId) && displayCoupons.length > 0" 
-        @swiper="onSwiper" 
-        :slides-per-view="2.5" 
-        :space-between="1" 
-        loop
-      >
-        <swiper-slide v-for="coupon in displayCoupons" :key="coupon.id">
-          <CouponCard :coupon="coupon" @click="goToCouponDetails(coupon.id)" @clip="handleClipCoupon(coupon.id)" />
-        </swiper-slide>
-      </swiper>
-      <div v-else class="no-store-container">
-        <div class="no-store-card">
-          <div class="overlay"></div>
-          <h3>No Coupons Available</h3>
-          <p>Check back later for new deals.</p>
+    <div class="carousel-shell">
+      <div>
+        <swiper 
+          v-if="(!hasMidaxCoupons || hasStoreId) && displayCoupons.length > 0" 
+          @swiper="onSwiper" 
+          :slides-per-view="2.5" 
+          :space-between="1" 
+          loop
+        >
+          <swiper-slide v-for="coupon in displayCoupons" :key="coupon.id">
+            <CouponCard :coupon="coupon" @click="goToCouponDetails(coupon.id)" @clip="handleClipCoupon(coupon.id)" />
+          </swiper-slide>
+        </swiper>
+        <div v-else-if="!showSkeleton && didFetchAtLeastOnce" class="no-store-container">
+          <div class="no-store-card">
+            <div class="overlay"></div>
+            <h3>No Coupons Available</h3>
+            <p>Check back later for new deals.</p>
+          </div>
         </div>
       </div>
-    </div>
-    <div v-else>
-      <CouponsSkeleton :count="1" />
+      <div v-if="showSkeleton" class="skeleton-overlay">
+        <CouponsSkeleton :count="1" />
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed, watch, onMounted, onUnmounted, ref } from 'vue';
+import { computed, watch, onMounted, onUnmounted, ref, nextTick } from 'vue';
 import { Swiper, SwiperSlide } from 'swiper/vue';
 import { IonList, IonItem, IonText, IonIcon } from '@ionic/vue';
 import { useRouter } from 'vue-router';
@@ -81,13 +83,20 @@ const { addClippedCoupon, loadClippedCoupons } = useClippedCoupons();
 const hasMidaxCoupons = ref(import.meta.env.VITE_HAS_MIDAX_COUPONS === "true");
 const storeId = ref(localStorage.getItem('storeId'));
 const hasStoreId = computed(() => !!storeId.value);
+// Local UI readiness flag to keep skeleton visible until content is rendered
+const uiReady = ref(false);
+// Track active concurrent fetches to avoid flicker when multiple triggers fire
+const activeFetches = ref(0);
+const didFetchAtLeastOnce = ref(false);
+const showSkeleton = computed(() => activeFetches.value > 0 || !uiReady.value);
 
 // Only display up to the limit
 const displayCoupons = computed(() => localCoupons.value.slice(0, props.limit));
 
 // Define onSwiper method for Swiper component
 const onSwiper = (swiper) => {
-  // Store swiper instance if needed for later manipulation
+  // When swiper instance is ready, the slides are in the DOM; mark UI as ready
+  uiReady.value = true;
 };
 
 /**
@@ -100,6 +109,9 @@ const loadAllCoupons = async () => {
   if (!currentStoreId) return;
 
   try {
+    // Show skeleton while loading and rendering
+    uiReady.value = false;
+    activeFetches.value += 1;
     const response = await (async () => {
       if (props.category === 'Weekly Specials') {
         return await fetchWeeklySpecials(props.limit, 0);
@@ -136,9 +148,20 @@ const loadAllCoupons = async () => {
           : coupon?.category !== 'Weekly Specials'
       )
       .slice(0, props.limit);
+
+    // Wait for DOM to update; if there are no coupons or swiper won't mount, mark ready now
+    await nextTick();
+    if (localCoupons.value.length === 0) {
+      uiReady.value = true;
+    }
   } catch (error) {
     console.error('Error loading coupons:', error);
     localCoupons.value = [];
+    uiReady.value = true; // Avoid hanging skeleton on error
+  }
+  finally {
+    didFetchAtLeastOnce.value = true;
+    activeFetches.value = Math.max(0, activeFetches.value - 1);
   }
   
   // Load clipped coupons for logged-in users
@@ -200,23 +223,10 @@ const goToCouponsArchive = () => {
 };
 
 // Handler function for location change events
-const handleLocationChanged = async (event) => {
+const handleLocationChanged = async () => {
   // Update storeId ref when location changes
   storeId.value = localStorage.getItem('storeId');
-  
-  try {
-    // Use appropriate fetch method based on category
-    if (props.category === 'Weekly Specials') {
-      const response = await fetchWeeklySpecialsCoupons(props.limit, 0);
-      localCoupons.value = response.items || [];
-    } else {
-      const response = await fetchCoupons({ limit: props.limit, offset: 0 });
-      localCoupons.value = response.items || [];
-    }
-  } catch (error) {
-    console.error('Error updating coupons after location change:', error);
-    localCoupons.value = [];
-  }
+  await loadAllCoupons();
 };
 
 // Handler for storage events
@@ -253,6 +263,8 @@ onMounted(async () => {
 onUnmounted(() => {
   window.removeEventListener('locationChanged', handleLocationChanged);
   window.removeEventListener('storage', handleStorageChange);
+  window.removeEventListener('locationUpdated', loadAllCoupons);
+  window.removeEventListener('userSignedUp', loadAllCoupons);
 });
 </script>
 
@@ -334,5 +346,17 @@ ion-note {
   width: 100%;
   height: 100%;
   border-radius: 8px;
+}
+
+.carousel-shell {
+  position: relative;
+  min-height: 140px; /* ensure skeleton space before content mounts */
+}
+
+.skeleton-overlay {
+  position: absolute;
+  inset: 0;
+  background: var(--ion-background-color, #fff);
+  z-index: 10000;
 }
 </style>

@@ -89,6 +89,8 @@ const uiReady = ref(false);
 const activeFetches = ref(0);
 const didFetchAtLeastOnce = ref(false);
 const showSkeleton = computed(() => activeFetches.value > 0 || !uiReady.value);
+// Safety timeout: ensure skeleton can't hang indefinitely
+const SKELETON_TIMEOUT_MS = 5000;
 
 // Only display up to the limit
 const displayCoupons = computed(() => localCoupons.value.slice(0, props.limit));
@@ -149,11 +151,9 @@ const loadAllCoupons = async () => {
       )
       .slice(0, props.limit);
 
-    // Wait for DOM to update; if there are no coupons or swiper won't mount, mark ready now
+    // Wait for DOM to update; mark UI ready regardless of Swiper event firing
     await nextTick();
-    if (localCoupons.value.length === 0) {
-      uiReady.value = true;
-    }
+    uiReady.value = true;
   } catch (error) {
     console.error('Error loading coupons:', error);
     localCoupons.value = [];
@@ -181,12 +181,15 @@ watch(
   }
 );
 
-// Watch for authentication changes
+// Watch for authentication changes; force UI-ready fallback if fetch completes
 watch(
   () => TokenStorage.hasTokens(), 
   async (isAuthenticated) => {
     if (isAuthenticated) {
       await loadAllCoupons();
+      // Ensure UI is not stuck
+      await nextTick();
+      uiReady.value = true;
     }
   }
 );
@@ -257,6 +260,13 @@ onMounted(async () => {
   
   // Also listen for custom event that might be triggered after location selection
   window.addEventListener('locationUpdated', loadAllCoupons);
+
+  // Fallback timer in case Swiper never fires @swiper and UI stays not ready
+  setTimeout(() => {
+    if (!uiReady.value) {
+      uiReady.value = true;
+    }
+  }, SKELETON_TIMEOUT_MS);
 });
 
 // Clean up event listeners when component is unmounted

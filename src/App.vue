@@ -23,6 +23,9 @@ import CustomerApi from './axios/apiCustomer'
 import { useAuthModule } from './composables/useAuth0Modal'
 import { useRouter } from 'vue-router'
 import Customer from './axios/apiCustomer'
+import OneSignal from 'onesignal-cordova-plugin'
+import { useNotifications } from './composables/useNotifications'
+
 
 const router = useRouter()
 
@@ -67,6 +70,20 @@ watch(isAuthenticated, async (newValue) => {
             cardNumber: userDetails.CardNumber || userDetails.cardNumber || ''
           }
         }))
+        // Tag with email and location after successful coupons login
+        const selectedLocationRaw = localStorage.getItem('selectedLocation')
+        const selectedLocation = selectedLocationRaw ? JSON.parse(selectedLocationRaw) : null
+        const selectedLocationTitle = selectedLocation?.title
+        const userEmail = (userDetails.Email || userDetails.email || '').toLowerCase()
+        const tags = {}
+        if (userEmail) tags['user_email'] = userEmail
+        if (selectedLocationTitle) tags['user_location_title'] = String(selectedLocationTitle)
+
+        if (Object.keys(tags).length > 0) {
+          const { setNotificationTags } = useNotifications()
+          try { await OneSignal.User.removeTags(['user_location']); } catch (e) { /* ignore */ }
+          await setNotificationTags(tags)
+        }
       }
     } catch (error) {
       console.error('Error checking user details:', error)

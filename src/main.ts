@@ -76,9 +76,7 @@ const app = createApp(App)
     })
   );
 
-// Provide the notification permission function
-const { requestNotificationPermission } = useNotifications();
-app.provide('requestNotificationPermission', requestNotificationPermission);
+// (Removed injection of notification permission helper to avoid duplicate prompts)
 
 router.isReady().then(() => {
   app.mount('#app');
@@ -91,4 +89,33 @@ router.isReady().then(() => {
     .then((response) => {
       console.log('Push notification permission response:', response);
     });
+
+  // Tag on cold start and on key app events
+  const { setNotificationTags } = useNotifications();
+
+  const computeAndSetTags = async () => {
+    try {
+      const selectedLocationRaw = localStorage.getItem('selectedLocation');
+      const selectedLocation = selectedLocationRaw ? JSON.parse(selectedLocationRaw) : null;
+      const selectedLocationTitle = selectedLocation?.title;
+
+      const tags = {} as Record<string, string>;
+      if (selectedLocationTitle) tags['user_location_title'] = String(selectedLocationTitle);
+
+      if (Object.keys(tags).length > 0) {
+        try { await OneSignal.User.removeTags(['user_location']); } catch (e) { /* ignore */ }
+        await setNotificationTags(tags);
+      }
+    } catch (err) {
+      console.error('Error computing OneSignal tags:', err);
+    }
+  };
+
+  // Cold start tagging
+  void computeAndSetTags();
+
+  // Re-tag on app events that imply user/location changes
+  window.addEventListener('tokensUpdated', () => { void computeAndSetTags(); });
+  window.addEventListener('userSignedUp', () => { void computeAndSetTags(); });
+  window.addEventListener('locationChanged', () => { void computeAndSetTags(); });
 });

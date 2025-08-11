@@ -3,7 +3,7 @@
     <ion-list lines="none" v-if="spotlights.length > 0">
       <ion-item>
         <ion-text>
-          <h3 class="app-list-heading">Spotlight Specials</h3>
+          <h3 class="app-list-heading">Weekly Wows</h3>
           <p class="app-list-subheading">Don't miss out on this week's top picks.</p>
         </ion-text>
       </ion-item>

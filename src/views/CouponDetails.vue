@@ -186,7 +186,7 @@ const handleClipClick = async () => {
     const couponData = {
       offer_id: props.id.toString(),
       app_id: import.meta.env.VITE_APP_ID,
-      provider: "QUOT"
+      provider: props.coupon.provider
     };
     
     const response = await Coupons.clipCoupon(cardNumber, couponData);

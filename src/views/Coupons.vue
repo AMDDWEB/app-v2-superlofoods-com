@@ -98,7 +98,7 @@
         position-anchor="mainTabBar"
       />
       <ion-toast
-        :is-open="selectedView === 'all' && showCountToast"
+        :is-open="selectedView === 'all' && selectedCategory !== 'All Coupons' && showCountToast"
         @didDismiss="showCountToast = false"
         :message="`${selectedCategory} has ${categoryCounts[selectedCategory] ?? 0} available coupons.`"
         color="warning"
@@ -363,7 +363,7 @@ const setCategory = async (category) => {
     
     // Load the coupons for the new category
     await loadAllCoupons();
-    showCountToast.value = true;
+    showCountToast.value = category !== 'All Coupons';
     // Small delay to ensure the UI has time to update
     await new Promise(resolve => setTimeout(resolve, 100));
   } catch (error) {
@@ -394,7 +394,7 @@ const handleSearch = () => {
 onMounted(async () => {
   await fetchCategories();
   await loadAllCoupons();
-  showCountToast.value = true;
+  showCountToast.value = selectedCategory.value !== 'All Coupons';
   window.addEventListener('userSignedUp', () => {
     loadAllCoupons();
   });

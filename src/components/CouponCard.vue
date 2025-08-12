@@ -1,25 +1,23 @@
 <template>
   <div class="coupon-card-wrapper">
-    <!-- Custom Card with Badge -->
-    <div class="custom-card" @click="handleCardClick">
-      <!-- Category Badge -->
-      <div v-if="coupon.category" class="badge-container">
-        <ion-badge class="category-badge" color="success">{{ coupon.category.name || coupon.category }}</ion-badge>
-      </div>
-      
+    <!-- Category Badge (outside the card to cover the top dashed border) -->
+    <div v-if="coupon.category" class="badge-container">
+      <ion-badge class="category-badge" color="success">
+        {{ coupon.category.name || coupon.category }}
+      </ion-badge>
+    </div>
+    <ion-card @click="handleCardClick">
       <!-- Image Container -->
-      <ion-img v-if="coupon.image_url || decodedImageSrc" class="coupon-image-container" :src="coupon.image_url || decodedImageSrc"></ion-img>
+      <ion-img v-if="decodedImageSrc" class="coupon-image-container" :src="decodedImageSrc"></ion-img>
       <div v-else class="coupon-image-container">
         <ion-spinner name="lines"></ion-spinner>
       </div>
 
       <!-- Text Content -->
-      <span class="coupon-brand truncate">{{ coupon.brand || coupon.subtitle || '' }}</span>
-      <ion-card-title class="coupon-value ion-text-center truncate">{{ coupon.title || coupon.name || '' }}</ion-card-title>
-      <span class="coupon-description truncate-multiline">{{ coupon.description || coupon.details || '' }}</span>
-      <span v-if="coupon.expiry_date || coupon.to_date" class="coupon-expiration ion-text-center">
-        Expires {{ formatExpDate(coupon.expiry_date || coupon.to_date) }}
-      </span>
+      <span class="coupon-brand truncate">{{ coupon.subtitle }}</span>
+      <ion-card-title class="coupon-value ion-text-center truncate">{{ coupon.title }}</ion-card-title>
+      <span class="coupon-description truncate-multiline">{{ coupon.description }}</span>
+      <span class="coupon-expiration ion-text-center">Expires {{ formatExpDate(coupon.to_date) }}</span>
 
       <!-- Button -->
       <ion-button
@@ -31,21 +29,21 @@
         <ion-icon slot="start" name="coupons-regular" />
         {{ isCouponClipped(coupon.id) ? 'Clipped' : 'Clip Coupon' }}
       </ion-button>
-    </div>
+    </ion-card>
   </div>
-  
+
+
   <!-- Coupon Modal -->
   <ion-modal :is-open="showCouponModal" @didDismiss="closeCouponModal"
     :initial-breakpoint="1" :breakpoints="[0, 1]" :swipe-to-close="true">
-    <div class="ion-page">
-      <ion-header translucent>
-        <ion-toolbar>
-          <ion-title>Coupon Details</ion-title>
-          <ion-buttons slot="end">
-            <ion-button @click="closeCouponModal">Close</ion-button>
-          </ion-buttons>
-        </ion-toolbar>
-      </ion-header>
+    <ion-header>
+      <ion-toolbar>
+        <ion-buttons slot="end">
+          <ion-button @click="closeCouponModal">Close</ion-button>
+        </ion-buttons>
+        <ion-title>Coupon Details</ion-title>
+      </ion-toolbar>
+    </ion-header>
 
     <ion-content>
       <ion-segment class="coupon-details-segment" v-model="selectedSegment">
@@ -59,20 +57,16 @@
 
       
       <div class="coupon-details-card" v-if="selectedSegment === 'details'">
-        <div class="product-info">
-          <h3>{{ coupon.brand || coupon.subtitle || '' }}</h3>
-          <span class="coupon-details-label">{{ coupon.title || coupon.name || '' }}</span>
-        </div>
-        <span class="coupon-details-text">{{ coupon.description || coupon.details || '' }}</span>
+        <span class="coupon-details-label">{{ coupon.title }} on {{ coupon.subtitle }}</span><br>
+        <span class="coupon-details-text">{{ coupon.description }}</span>
       </div>
-      <ion-img v-if="(coupon.image_url || decodedImageSrc) && selectedSegment === 'details'" class="coupon-details-image" :src="coupon.image_url || decodedImageSrc"></ion-img>
+      <ion-img v-if="decodedImageSrc && selectedSegment === 'details'" class="coupon-details-image" :src="decodedImageSrc"></ion-img>
 
       <div class="coupon-details-card" v-if="selectedSegment === 'terms'">
-        <span class="coupon-details-label">Coupon Expires on {{ formatExpDate(coupon.expiry_date || coupon.to_date) }}</span><br>
-        <span class="coupon-details-text">{{ coupon.terms || coupon.disclaimer || 'No terms and conditions available' }}</span>
+        <span class="coupon-details-label">Coupon Expires on {{ formatExpDate(coupon.to_date) }}</span><br>
+        <span class="coupon-details-text">{{ coupon.disclaimer }}</span>
       </div>
     </ion-content>
-    </div>
   </ion-modal>
 
   <!-- Signup Modal -->
@@ -110,6 +104,7 @@ const isClipping = ref(false);
 const showCouponModal = ref(false);
 const selectedSegment = ref('details');
 
+ 
 
 const formatExpDate = (date) => format(new Date(date), 'MM/dd/yyyy');
 
@@ -202,48 +197,33 @@ const handleClipClick = async (event) => {
 </script>
 
 <style scoped>
-/* Card wrapper styles */
+/* Styles maintained as requested */
+/* Wrapper to allow the badge to overlap the card border */
 .coupon-card-wrapper {
   position: relative;
-  margin: 0 4px;
-  height: 295px;
 }
 
-/* Main card styles */
-.custom-card {
-  position: relative;
-  height: 100%;
+ion-card {
   padding-top: 10px;
+  margin: 0 4px;
+  border: 2px dashed var(--ion-color-light-shade);
+  box-shadow: none;
+  height: 280px;
   display: flex;
   flex-direction: column;
   align-items: center;
   border-radius: 8px;
-  background-color: var(--ion-card-background, var(--ion-item-background, var(--ion-background-color, #fff)));
 }
 
-/* Dashed border */
-.custom-card::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  border: 2px dashed var(--ion-color-light-shade);
-  border-radius: 8px;
-  pointer-events: none;
-  z-index: 1;
-}
-
-/* Badge container */
+/* Coupon category badge */
 .badge-container {
   position: absolute;
-  top: 0;
-  right: 0;
+  /* Pull up over the dashed border and nudge right to cover corner */
+  top: -2px;
+  right: 4px;
   z-index: 20;
 }
 
-/* Badge style */
 .category-badge {
   font-size: 0.7rem;
   border-radius: 0 8px 0 6px;
@@ -254,7 +234,7 @@ const handleClipClick = async (event) => {
 .coupon-image-container {
   height: 100px;
   width: 100%;
-  margin-top: 20px; 
+  margin-top: 10px; 
   display: flex;
   justify-content: center;
   align-items: center;
@@ -290,8 +270,8 @@ const handleClipClick = async (event) => {
 }
 
 ion-button {
-  margin-bottom: 15px;
-  height: 30px;
+  margin: 5px 10px;
+  height: 32px;
   --border-width: 1.5px;
   width: 90%;
 }

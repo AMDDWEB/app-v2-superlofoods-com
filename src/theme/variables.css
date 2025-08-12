@@ -195,6 +195,7 @@ http://ionicframework.com/docs/theming/ */
 	overflow: hidden;
 	text-overflow: ellipsis;
 	-webkit-line-clamp: 1;
+	line-clamp: 1;
 	max-width: 13ch;
   }
 
@@ -211,6 +212,7 @@ http://ionicframework.com/docs/theming/ */
 	-webkit-box-orient: vertical;
 	overflow: hidden;
 	-webkit-line-clamp: 2;
+	line-clamp: 2;
 	line-height: 1.2em;
 	max-height: 3.6em;
   }

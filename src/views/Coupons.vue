@@ -3,7 +3,7 @@
     <ion-header>
       <!-- All/Clipped Toggle First -->
       <ion-toolbar>
-        <ion-segment class="coupon-toggle" v-model="selectedView" style="width: 96.5%;">
+        <ion-segment class="coupon-toggle" v-model="selectedView">
           <ion-segment-button value="all">
             <ion-label>All Coupons</ion-label>
           </ion-segment-button>
@@ -97,6 +97,15 @@
         position="bottom"
         position-anchor="mainTabBar"
       />
+      <ion-toast
+        :is-open="selectedView === 'all' && showCountToast"
+        @didDismiss="showCountToast = false"
+        :message="`${selectedCategory} has ${categoryCounts[selectedCategory] ?? 0} available coupons.`"
+        color="warning"
+        duration="2500"
+        position="bottom"
+        position-anchor="mainTabBar"
+      />
     </ion-content>
 
     <SignupModal />
@@ -129,6 +138,23 @@ const searchTimeout = ref(null);
 const uniqueCouponIds = ref(new Set());
 const isProcessingCoupons = ref(false); // Track if we're still processing coupons
 
+const categoryCounts = ref({});
+const showCountToast = ref(false);
+
+const readTotalFromResponse = (response) => {
+  // Try common server-side total shapes; fall back to items length
+  return (
+    response?.total ??
+    response?.data?.total ??
+    response?.data?.totalItems ??
+    response?.data?.count ??
+    response?.count ??
+    (Array.isArray(response?.items) ? response.items.length : undefined) ??
+    (Array.isArray(response?.data?.items) ? response.data.items.length : undefined) ??
+    0
+  );
+};
+
 const sortedCategories = computed(() => {
   // Exclude "All Coupons" and "Weekly Specials" from alphabetical sort
   const otherCategories = availableCategories.value
@@ -154,6 +180,9 @@ watch(coupons, (newCoupons) => {
 
 // Watch for changes to selectedView to cleanup expired coupons when viewing clipped
 watch(selectedView, async (newView) => {
+  if (newView !== 'all') {
+    showCountToast.value = false;
+  }
   if (newView === 'clipped') {
     isProcessingCoupons.value = true;
     try {
@@ -270,6 +299,7 @@ const loadAllCoupons = async () => {
   let totalLoaded = 0;
 
   try {
+    let firstPage = true;
     while (totalLoaded < maxCoupons) {
       // Prefer server-side filtering by category when possible
       const categoryObj = getCategoryByName(selectedCategory.value);
@@ -280,6 +310,16 @@ const loadAllCoupons = async () => {
         manageLoading: false,
         skipState: true
       });
+      // NEW: read server-side total once
+      if (firstPage) {
+        const total = readTotalFromResponse(response);
+        categoryCounts.value = {
+          ...categoryCounts.value,
+          [selectedCategory.value]: total
+        };
+        firstPage = false;
+      }
+
       const items = response?.items || response?.data?.items || [];
 
       if (items.length === 0) {
@@ -323,7 +363,7 @@ const setCategory = async (category) => {
     
     // Load the coupons for the new category
     await loadAllCoupons();
-    
+    showCountToast.value = true;
     // Small delay to ensure the UI has time to update
     await new Promise(resolve => setTimeout(resolve, 100));
   } catch (error) {
@@ -354,6 +394,7 @@ const handleSearch = () => {
 onMounted(async () => {
   await fetchCategories();
   await loadAllCoupons();
+  showCountToast.value = true;
   window.addEventListener('userSignedUp', () => {
     loadAllCoupons();
   });

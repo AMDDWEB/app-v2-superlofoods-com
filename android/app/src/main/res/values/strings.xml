@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Cosentino's Market</string>
-    <string name="title_activity_main">Cosentino's Market</string>
+    <string name="app_name">Cosentino\'s Market</string>
+    <string name="title_activity_main">Cosentino\'s Market</string>
     <string name="package_name">com.a2adv.cosentinosmarket</string>
     <string name="custom_url_scheme">com.a2adv.cosentinosmarket</string>
 </resources>

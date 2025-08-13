@@ -50,8 +50,9 @@
 
     <ion-content :fullscreen="true">
       <div class="coupon-grid">
-        <div v-if="loading" class="loading-container">
-          <ion-spinner name="crescent" class="app-loading-spinner"></ion-spinner>
+        <!-- Show skeleton loaders when loading -->
+        <div v-if="loading" class="coupon-container">
+          <CouponsSkeleton :count="6" />
         </div>
         
         <ion-toast v-else-if="selectedView === 'clipped' && displayedCoupons.length === 0 && !isProcessingCoupons"
@@ -63,14 +64,21 @@
           position-anchor="mainTabBar"
         />
 
-        <div v-else-if="displayedCoupons.length > 0" class="coupon-container">
-          <CouponCard
-            v-for="coupon in displayedCoupons"
-            :key="coupon.id"
-            :coupon="coupon"
-            @click="goToCouponDetails(coupon.id)"
-            @clipped="handleClip"
-          />
+        <!-- Always show the coupon container if we have any coupons or are loading -->
+        <div v-if="displayedCoupons.length > 0 || loading" class="coupon-container">
+          <!-- Show available coupons -->
+          <template v-if="displayedCoupons.length > 0">
+            <CouponCard
+              v-for="coupon in displayedCoupons"
+              :key="coupon.id"
+              :coupon="coupon"
+              @click="goToCouponDetails(coupon.id)"
+              @clipped="handleClip"
+            />
+            <div v-if="loadingClipped" class="loading-more-container">
+              <CouponsSkeleton :count="1" />
+            </div>
+          </template>
         </div>
       </div>
 
@@ -100,7 +108,7 @@
       <ion-toast
         :is-open="selectedView === 'all' && selectedCategory !== 'All Coupons' && showCountToast"
         @didDismiss="showCountToast = false"
-        :message="`${selectedCategory} has ${categoryCounts[selectedCategory] ?? 0} available coupons.`"
+        :message="selectedCategory === 'All Coupons' ? `You have ${categoryCounts[selectedCategory] ?? 0} available coupons to clip.` : `${selectedCategory} has ${categoryCounts[selectedCategory] ?? 0} available coupons.`"
         color="warning"
         duration="2500"
         position="bottom"
@@ -120,14 +128,18 @@ import { useSignupModal } from '@/composables/useSignupModal';
 import { useClippedCoupons } from '@/composables/useClippedCoupons';
 import { useRouter } from 'vue-router';
 import CouponCard from '@/components/CouponCard.vue';
+import CouponsSkeleton from '@/components/CouponsSkeleton.vue';
 import { IonPage, IonHeader, IonToolbar, IonContent, IonSegment, IonSegmentButton, 
-         IonLabel, IonSpinner, IonToast } from '@ionic/vue';
+         IonLabel, IonToast } from '@ionic/vue';
 import { defineComponent } from 'vue';
 
 const router = useRouter();
 const { coupons, loading, fetchCoupons, availableCategories, fetchCategories, isMidax, getCategoryByName } = useCouponDetails();
 const { SignupModal } = useSignupModal();
-const { isCouponClipped, syncClippedCoupons, showErrorAlert, errorMessage, closeErrorAlert, cleanupExpiredCoupons } = useClippedCoupons();
+const { isCouponClipped, syncClippedCoupons, showErrorAlert, errorMessage, closeErrorAlert, cleanupExpiredCoupons, hasLoadedInitial } = useClippedCoupons();
+
+// Track if we're loading clipped coupons specifically
+const loadingClipped = ref(false);
 
 const offset = ref(0);
 const limit = ref(isMidax.value ? 20 : 1000);
@@ -290,17 +302,28 @@ const showClippedToast = computed(() =>
 
 // Function to load all coupons
 const loadAllCoupons = async () => {
-  loading.value = true;
-  offset.value = 0;
-  coupons.value = [];
-  uniqueCouponIds.value.clear();
-
+  // Store the current category and view to handle race conditions
+  const currentCategory = selectedCategory.value;
+  const currentView = selectedView.value;
+  const isClippedView = currentView === 'clipped' && currentCategory === 'All Coupons';
+  
+  // Set loading state
+  if (isClippedView) {
+    loadingClipped.value = true;
+  }
+  
   const maxCoupons = 5000; // Safety limit to prevent infinite loops
   let totalLoaded = 0;
+  let hasMore = true;
+  let isFirstBatch = true;
 
   try {
-    let firstPage = true;
-    while (totalLoaded < maxCoupons) {
+    while (hasMore && totalLoaded < maxCoupons) {
+      // Check if the category has changed since we started loading
+      if (selectedCategory.value !== currentCategory) {
+        return; // Stop loading if category changed
+      }
+      
       // Prefer server-side filtering by category when possible
       const categoryObj = getCategoryByName(selectedCategory.value);
       const response = await fetchCoupons({ 
@@ -310,37 +333,61 @@ const loadAllCoupons = async () => {
         manageLoading: false,
         skipState: true
       });
-      // NEW: read server-side total once
-      if (firstPage) {
+      
+      const items = response?.items || response?.data?.items || [];
+      hasMore = items.length > 0;
+
+      if (items.length === 0) {
+        // If no items and it's the first batch, clear any existing coupons
+        if (isFirstBatch) {
+          coupons.value = [];
+        }
+        break; // No more coupons to load
+      }
+
+      // Filter out duplicates and add to the existing coupons
+      const newCoupons = items.filter(coupon => !uniqueCouponIds.value.has(coupon.id));
+      
+      if (newCoupons.length > 0) {
+        newCoupons.forEach(coupon => uniqueCouponIds.value.add(coupon.id));
+        
+        // Update the coupons array with the new batch
+        coupons.value = [...coupons.value, ...newCoupons];
+        totalLoaded += newCoupons.length;
+      }
+      
+      // Update category counts on first batch
+      if (isFirstBatch) {
         const total = readTotalFromResponse(response);
         categoryCounts.value = {
           ...categoryCounts.value,
           [selectedCategory.value]: total
         };
-        firstPage = false;
+        loading.value = false; // Hide initial loading spinner after first batch
+        isFirstBatch = false;
       }
-
-      const items = response?.items || response?.data?.items || [];
-
-      if (items.length === 0) {
-        break; // No more coupons to load
-      }
-
-      // Filter out duplicates
-      const newCoupons = items.filter(coupon => !uniqueCouponIds.value.has(coupon.id));
-      newCoupons.forEach(coupon => uniqueCouponIds.value.add(coupon.id));
-      coupons.value = [...coupons.value, ...newCoupons];
-
-      totalLoaded += newCoupons.length;
+      
       offset.value += limit.value;
-
-      // Small delay to avoid overwhelming the API when paginating
-      await new Promise(resolve => setTimeout(resolve, 50));
+      
+      // Small delay to allow the UI to update between batches
+      if (hasMore) {
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
     }
   } catch (error) {
-    console.error('Error loading all coupons:', error);
+    console.error('Error loading coupons:', error);
   } finally {
-    loading.value = false;
+    // Update loading states based on current view
+    if (selectedCategory.value === currentCategory && selectedView.value === currentView) {
+      loading.value = false;
+      
+      // For clipped view, only clear loadingClipped when we've finished loading all coupons
+      if (isClippedView) {
+        // Small delay to ensure all coupons are processed before hiding the loader
+        await new Promise(resolve => setTimeout(resolve, 100));
+        loadingClipped.value = false;
+      }
+    }
   }
 };
 
@@ -348,22 +395,24 @@ const setCategory = async (category) => {
   // Don't do anything if clicking the same category
   if (selectedCategory.value === category) return;
   
-  // Set loading and processing states
+  // Reset states for the new category
   loading.value = true;
   isProcessingCoupons.value = true;
+  offset.value = 0; // Reset offset for the new category
+  uniqueCouponIds.value.clear(); // Clear the set of loaded coupon IDs
   const previousCategory = selectedCategory.value;
   selectedCategory.value = category;
   
+  // Clear existing coupons immediately
+  coupons.value = [];
+  
+  // Force UI to update
+  await new Promise(resolve => setTimeout(resolve, 0));
+  
   try {
-    // Reset the coupons array to trigger loading state
-    coupons.value = [];
-    
-    // Small delay to ensure UI updates the loading state
-    await new Promise(resolve => setTimeout(resolve, 50));
-    
     // Load the coupons for the new category
     await loadAllCoupons();
-    showCountToast.value = category !== 'All Coupons';
+    showCountToast.value = category !== 'All Coupons';  // showCountToast.value = category !== 'All Coupons';
     // Small delay to ensure the UI has time to update
     await new Promise(resolve => setTimeout(resolve, 100));
   } catch (error) {

@@ -219,7 +219,7 @@ ion-card {
 .badge-container {
   position: absolute;
   /* Pull up over the dashed border and nudge right to cover corner */
-  top: -2px;
+  /* top: -4px; */
   right: 4px;
   z-index: 20;
 }

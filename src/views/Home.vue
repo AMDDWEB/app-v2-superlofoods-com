@@ -135,7 +135,7 @@ const presentBarcodeModal = () => {
 
 // Initialize all refs at the top
 const sliders = ref([]);
-
+const recipes = ref([]);
 const spotlights = ref([]);
 const { transformLocationData } = useLocationDetails();
 

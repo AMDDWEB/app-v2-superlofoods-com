@@ -28,13 +28,19 @@ export function useCouponDetails() {
       if (!locationId) {
         throw new Error('No store ID found in localStorage');
       }
-
-      const response = await Coupons.getCoupons(
+      let params = {
         limit,
         offset,
-        locationId,
-        selectedSort.value,
-        category
+        location_id: locationId,
+        sort_by: selectedSort.value
+      }
+      if( localStorage.getItem('CardNumber') ) {
+        params.card_number = localStorage.getItem('CardNumber')
+      }
+      if (category) params.category_id = category.Id
+
+      const response = await Coupons.getCoupons(
+        params
       );
 
       if (!skipState) {

@@ -1,0 +1,41 @@
+/* Safe area handling for Android devices only */
+:root.plt-android {
+  /* Status bar height */
+  --status-bar-height: 24px;
+  
+  /* Safe area variables for Android */
+  --ion-safe-area-top: var(--status-bar-height);
+  --ion-safe-area-bottom: env(safe-area-inset-bottom, 0);
+  
+  /* Fix for toolbar going under status bar */
+  ion-header {
+    padding-top: var(--ion-safe-area-top, 0);
+    background: var(--ion-color-primary);
+  }
+  
+  /* Fix for content starting below the toolbar */
+  ion-content {
+    --padding-top: 0;
+    --padding-bottom: 0;
+    --offset-top: 56px; /* Height of the toolbar */
+    --offset-bottom: 56px; /* Height of the tab bar */
+  }
+  
+  /* Fix for tabs at the bottom */
+  ion-tabs {
+    padding-bottom: var(--ion-safe-area-bottom, 0);
+    height: calc(56px + var(--ion-safe-area-bottom, 0));
+  }
+  
+  /* Ensure tab bar is above the navigation buttons */
+  ion-tab-bar {
+    padding-bottom: var(--ion-safe-area-bottom, 0);
+    height: calc(56px + var(--ion-safe-area-bottom, 0));
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Adjust content to account for tab bar */
+  ion-router-outlet {
+    margin-bottom: calc(56px + var(--ion-safe-area-bottom, 0));
+  }
+}

@@ -71,9 +71,9 @@
   
   /* Fix for content starting below the toolbar */
   ion-content {
-    --padding-top: 0;
-    --padding-bottom: 0;
-    --offset-top: 56px; /* Height of the toolbar */
+    --padding-top: calc(var(--status-bar-height) + 56px); /* Status bar + toolbar height */
+    --padding-bottom: var(--ion-safe-area-bottom, 0);
+    --offset-top: calc(var(--status-bar-height) + 56px);
     --offset-bottom: 56px; /* Height of the tab bar */
   }
   

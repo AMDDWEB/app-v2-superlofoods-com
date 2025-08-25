@@ -76,6 +76,7 @@
     --offset-top: 10px;
     --offset-bottom: 56px; /* Height of the tab bar */
     --ion-safe-area-top: 0 !important;
+    background-color: #ffffff;
   }
   
   /* Reduce spacing between title and search bar on Android */
@@ -92,6 +93,7 @@
   .app-search-input {
     margin-top: 0;
     padding: 5px 16px 5px 40px;
+    background-color: #ffffff;
   }
   
   .app-custom-search-icon {

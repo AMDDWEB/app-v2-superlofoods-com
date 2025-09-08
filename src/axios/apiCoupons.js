@@ -37,14 +37,9 @@ class Coupons {
     })
   }
 
-  async getCoupons(limit, offset, locationId, sortBy, category) {
-    let params = {
-      offset,
-      limit,
-      location_id: locationId,
-      sort_by: sortBy
-    }
-    if (category) params.category_id = category.Id
+  //add card number
+  async getCoupons(params) {
+    console.log('api coupons params', params)
     return coupons({
       url: `/offers`,
       method: 'GET',

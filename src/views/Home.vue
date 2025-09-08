@@ -47,7 +47,7 @@
           <ion-col v-if="hasRewards">
             <ion-button expand="block" size="small" @click="handleRewardsClick" color="primary">
               <ion-icon slot="start" name="rewards-regular"></ion-icon>
-              Market+
+              VIP Items
             </ion-button>
           </ion-col>
           <ion-col>
@@ -117,6 +117,7 @@ import { IonPage, IonHeader, IonToolbar, IonContent, IonButtons, IonButton, IonI
 import { useRouter } from 'vue-router';
 import { useLocationDetails } from '@/composables/useLocationDetails';
 import { useSignupModal } from '@/composables/useSignupModal';
+import { useAuthModule } from '@/composables/useAuth0Modal';
 import BarcodeModal from '@/components/BarcodeModal.vue';
 import apiNotifications from '../axios/apiNotifications.js'; // Import your API for notifactions
 import { onIonViewDidEnter, onIonViewWillEnter } from '@ionic/vue';
@@ -126,6 +127,7 @@ import { Browser } from '@capacitor/browser';
 const showBarcodeModal = ref(false);
 const { getLoyaltyNumber, getCardNumber } = useSignupModal();
 const loyaltyNumber = ref(getLoyaltyNumber());
+const { signIn } = useAuthModule();
 
 const presentBarcodeModal = () => {
   if (loyaltyNumber.value && getCardNumber()) {
@@ -299,6 +301,14 @@ async function handleLocationSelected(location) {
   
   await fetchLocationData();
   await getData();
+
+  // After location is selected, immediately invoke Auth0 sign-in on first app load
+  if (isInitialLocationCheck.value) {
+    setTimeout(() => {
+      signIn();
+    }, 200);
+    isInitialLocationCheck.value = false;
+  }
 }
 
 // Fetch data from APIs

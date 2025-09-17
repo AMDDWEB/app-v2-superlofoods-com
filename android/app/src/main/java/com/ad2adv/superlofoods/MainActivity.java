@@ -1,4 +1,4 @@
-package com.a2adv.cosentinosmarket;
+package com.ad2adv.superlofoods;
 
 import com.getcapacitor.BridgeActivity;
 

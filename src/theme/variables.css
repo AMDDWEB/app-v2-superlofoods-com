@@ -10,24 +10,24 @@ http://ionicframework.com/docs/theming/ */
   
   /* Status bar height for mobile devices */
   --status-bar-height: 24px;
-	--ion-color-primary: #C41230;
-	--ion-color-primary-rgb: 196,18,48;
+	--ion-color-primary: #001738;
+	--ion-color-primary-rgb: 0,23,56;
 	--ion-color-primary-contrast: #f7f7f7;
 	--ion-color-primary-contrast-rgb: 247,247,247;
-	--ion-color-primary-shade: #ac102a;
-	--ion-color-primary-tint: #ca2a45;
+	--ion-color-primary-shade: #001431;
+	--ion-color-primary-tint: #1a2e4c;
 
-	--ion-color-secondary: #231F20;
-	--ion-color-secondary-rgb: 35,31,32;
+	--ion-color-secondary: #00A651;
+	--ion-color-secondary-rgb: 0,166,81;
 	--ion-color-secondary-contrast: #ffffff;
 	--ion-color-secondary-contrast-rgb: 255,255,255;
-	--ion-color-secondary-shade: #1f1b1c;
-	--ion-color-secondary-tint: #393536;
+	--ion-color-secondary-shade: #009247;
+	--ion-color-secondary-tint: #1aaf62;
 
-	--ion-color-tertiary: #CE5E66;
+	--ion-color-tertiary: #ce5e66;
 	--ion-color-tertiary-rgb: 206,94,102;
-	--ion-color-tertiary-contrast: #ffffff;
-	--ion-color-tertiary-contrast-rgb: 255,255,255;
+	--ion-color-tertiary-contrast: #f7f7f7;
+	--ion-color-tertiary-contrast-rgb: 247,247,247;
 	--ion-color-tertiary-shade: #b5535a;
 	--ion-color-tertiary-tint: #d36e75;
 

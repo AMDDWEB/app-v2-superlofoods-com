@@ -1,8 +1,8 @@
 import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.a2adv.cosentinosmarket',
-  appName: 'Cosentino\'s Market',
+  appId: 'com.ad2adv.superlofoods',
+  appName: 'Superlo Foods's Market',
   webDir: 'dist',
   server: {
     androidScheme: 'https'
